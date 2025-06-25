@@ -1,0 +1,21 @@
+{
+  "family": "bx-backend-task",
+  "executionRoleArn": "arn:aws:iam::855159934171:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "bx-backend-container",
+      "image": "855159934171.dkr.ecr.sa-east-1.amazonaws.com/bx-backend:latest",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true
+    }
+  ]
+}
