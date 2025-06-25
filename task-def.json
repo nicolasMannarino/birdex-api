@@ -1,6 +1,7 @@
 {
   "family": "bx-backend-task",
   "executionRoleArn": "arn:aws:iam::855159934171:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::855159934171:role/ecsTaskExecutionRole",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
