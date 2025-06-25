@@ -1,0 +1,54 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: sa-east-1
+  ECR_REPO: 855159934171.dkr.ecr.sa-east-1.amazonaws.com/bx-backend
+  ECS_CLUSTER: bx-backend-cluster
+  ECS_SERVICE: bx-backend-service
+  ECS_TASK_DEF: bx-backend-task
+  CONTAINER_NAME: bx-backend-container
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Log in to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build Docker image
+      run: |
+        docker build -t $ECR_REPO:latest .
+
+    - name: Push to ECR
+      run: |
+        docker push $ECR_REPO:latest
+
+    - name: Update ECS service
+      run: |
+        aws ecs update-service \
+          --cluster $ECS_CLUSTER \
+          --service $ECS_SERVICE \
+          --force-new-deployment
+          
+    - name: Wait for service to be stable
+      run: |
+        aws ecs wait services-stable \
+          --cluster $ECS_CLUSTER \
+          --services $ECS_SERVICE
