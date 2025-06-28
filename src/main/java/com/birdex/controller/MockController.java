@@ -12,7 +12,8 @@ public class MockController {
 
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> mockResponse(@RequestBody String file) {
+    public ResponseEntity<Map<String, Object>> mockResponse(@RequestBody Map<String, String> request) {
+        String file = request.get("file");
         Map<String, Object> response = new HashMap<>();
 
         String mimeType = null;
