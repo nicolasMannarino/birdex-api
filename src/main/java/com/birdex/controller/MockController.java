@@ -1,10 +1,9 @@
 package com.birdex.controller;
 
+import com.birdex.domain.BirdDetectRequest;
+import com.birdex.domain.BirdDetectResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/detect")
@@ -12,9 +11,10 @@ public class MockController {
 
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> mockResponse(@RequestBody Map<String, String> request) {
-        String file = request.get("file");
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<BirdDetectResponse> mockResponse(@RequestBody BirdDetectRequest request) {
+        String file = request.getFileBase64();
+
+        BirdDetectResponse.BirdDetectResponseBuilder builder = new BirdDetectResponse.BirdDetectResponseBuilder();
 
         String mimeType = null;
         if (file != null && file.startsWith("data:")) {
@@ -25,16 +25,15 @@ public class MockController {
         }
 
         if (mimeType != null && mimeType.startsWith("image/")) {
-            response.put("etiqueta", "Paroaria coronata");
-            response.put("confianza", 0.9823);
-            response.put("imagen", file);
+            builder.label("Paroaria coronata");
+            builder.trustLevel(0.9823);
         } else if (mimeType != null && mimeType.startsWith("video/")) {
-            response.put("etiqueta", "Ave no identificada");
-            response.put("confianza", 0.0);
-            response.put("imagen", file);
-        } else {
-            return ResponseEntity.badRequest().body(Map.of("error", "Formato no soportado"));
+            builder.label("Ave no identificada");
+            builder.trustLevel(0.0);
         }
+
+        builder.fileBase64(file);
+        BirdDetectResponse response = builder.build();
 
         return ResponseEntity.ok(response);
     }
