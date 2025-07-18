@@ -1,18 +1,22 @@
 package com.birdex.domain;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 
 @Data
 public class BirdDetectResponse {
     private String label;
     private Double trustLevel;
-    private String fileBase64;
 
-    BirdDetectResponse(String label, Double trustLevel, String fileBase64) {
+    BirdDetectResponse(String label, Double trustLevel) {
         this.label = label;
         this.trustLevel = trustLevel;
-        this.fileBase64 = fileBase64;
+    }
+
+    public BirdDetectResponse() {
     }
 
     public static BirdDetectResponseBuilder builder() {
@@ -43,11 +47,11 @@ public class BirdDetectResponse {
         }
 
         public BirdDetectResponse build() {
-            return new BirdDetectResponse(this.label, this.trustLevel, this.fileBase64);
+            return new BirdDetectResponse(this.label, this.trustLevel);
         }
 
         public String toString() {
-            return "BirdDetectResponse.BirdDetectResponseBuilder(label=" + this.label + ", trustLevel=" + this.trustLevel + ", fileBase64=" + this.fileBase64 + ")";
+            return "BirdDetectResponse.BirdDetectResponseBuilder(label=" + this.label + ", fileBase64=" + this.fileBase64 + ")";
         }
     }
 }
