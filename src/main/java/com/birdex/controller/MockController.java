@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/detect")
+@CrossOrigin(origins = "*")
 public class MockController {
 
     @Autowired
