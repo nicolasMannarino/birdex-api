@@ -1,4 +1,4 @@
-package com.birdex;
+package com.birdex.service;
 
 import com.birdex.domain.BirdDetectResponse;
 import org.springframework.stereotype.Component;

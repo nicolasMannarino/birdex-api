@@ -1,6 +1,5 @@
 package com.birdex.service;
 
-import com.birdex.ModelProcessor;
 import com.birdex.domain.BirdDetectRequest;
 import com.birdex.domain.BirdDetectResponse;
 import org.springframework.stereotype.Service;
