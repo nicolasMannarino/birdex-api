@@ -6,11 +6,11 @@ services:
     container_name: postgres_db
     restart: always
     environment:
+      POSTGRES_DB: birdex
       POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: midatabase
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "5432:5432"
+      - "5455:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

@@ -1,0 +1,123 @@
+import base64
+import os
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+
+# Cargar .env
+load_dotenv()
+
+# Carpeta base donde está este archivo
+BASE_DIR = Path(__file__).resolve().parent
+
+# Rutas absolutas seguras
+MODEL_PATH = (BASE_DIR / os.getenv("MODEL_PATH")).resolve()
+LABELS_PATH = (BASE_DIR / os.getenv("LABELS_PATH")).resolve()
+
+# --- BirdNET ---
+from birdnetlib.analyzer import Analyzer
+from birdnetlib import Recording
+
+# -------- FastAPI --------
+app = FastAPI(title="BirdNET Service", version="1.0.0")
+
+origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",")] or ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -------- Modelos Pydantic --------
+class AnalyzeRequest(BaseModel):
+    audio_base64: str = Field(..., description="Audio en Base64 (mp3 o wav)")
+    min_conf: float = Field(float(os.getenv("MIN_CONFIDENCE", 0.3)), ge=0.0, le=1.0)
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    date: Optional[str] = Field(None, description="YYYY-MM-DD")
+
+class Detection(BaseModel):
+    start_time: float
+    end_time: float
+    label: str
+    confidence: float
+
+class AnalyzeResponse(BaseModel):
+    detections: List[Detection]
+
+# -------- Carga del modelo --------
+if not MODEL_PATH.exists() or not LABELS_PATH.exists():
+    raise RuntimeError(f"Model/labels not found:\n - {MODEL_PATH}\n - {LABELS_PATH}")
+
+os.environ.setdefault("PYTHONUTF8", "1")
+
+analyzer = Analyzer(
+    classifier_model_path=str(MODEL_PATH),
+    classifier_labels_path=str(LABELS_PATH),
+)
+
+try:
+    if hasattr(analyzer, "interpreter") and analyzer.interpreter is not None:
+        analyzer.interpreter.allocate_tensors()
+        print("[INFO] Tensores asignados correctamente en el inicio")
+except Exception as e:
+    print(f"[WARN] No se pudo asignar tensores al inicio: {e}")
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.post("/analyze", response_model=AnalyzeResponse)
+def analyze(req: AnalyzeRequest):
+    try:
+        raw = base64.b64decode(req.audio_base64)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Base64")
+
+    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+        f.write(raw)
+        audio_path = f.name
+
+    date_obj = None
+    if req.date:
+        try:
+            y, m, d = map(int, req.date.split("-"))
+            date_obj = datetime(year=y, month=m, day=d)
+        except Exception:
+            pass
+
+    try:
+        recording = Recording(
+            analyzer,
+            audio_path,
+            min_conf=req.min_conf,
+            lat=req.lat,
+            lon=req.lon,
+            date=date_obj,
+        )
+        recording.analyze()
+        detections = [
+            Detection(
+                start_time=d.get("start_time", 0.0),
+                end_time=d.get("end_time", 0.0),
+                label=d.get("label", ""),
+                confidence=d.get("confidence", 0.0),
+            )
+            for d in recording.detections
+        ]
+        return AnalyzeResponse(detections=detections)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analyzer error: {e}")
+    finally:
+        try:
+            os.remove(audio_path)
+        except Exception:
+            pass

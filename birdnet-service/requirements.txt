@@ -1,0 +1,6 @@
+fastapi==0.111.0
+uvicorn[standard]==0.30.0
+birdnetlib==0.14.0
+pydub==0.25.1
+librosa==0.10.2.post1
+python-dotenv==1.0.1
