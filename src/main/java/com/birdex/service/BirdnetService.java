@@ -1,42 +1,30 @@
 package com.birdex.service;
 
+import com.birdex.client.AudioAIModelClient;
 import com.birdex.domain.BirdnetAnalyzeRequest;
 import com.birdex.domain.BirdnetAnalyzeResponse;
-import org.springframework.http.HttpStatusCode;
+import com.birdex.domain.Detection;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.Map;
+import java.util.Comparator;
 
 @Service
+@Slf4j
 public class BirdnetService {
-    private final WebClient webClient;
+    private final AudioAIModelClient audioAIModelClient;
 
-    public BirdnetService(WebClient birdnetWebClient) {
-        this.webClient = birdnetWebClient;
+    public BirdnetService(AudioAIModelClient audioAIModelClient) {
+        this.audioAIModelClient = audioAIModelClient;
     }
 
-    public BirdnetAnalyzeResponse analyze(BirdnetAnalyzeRequest req) {
-        return webClient.post()
-                .uri("/analyze")
-                .bodyValue(req)
-                .retrieve()
-                .onStatus(
-                        HttpStatusCode::isError,
-                        resp -> resp.bodyToMono(String.class)
-                                .map(body -> new RuntimeException("BirdNET error: " + body))
-                )
-                .bodyToMono(BirdnetAnalyzeResponse.class)
-                .block();
+    public Detection analyze(BirdnetAnalyzeRequest req) {
+        BirdnetAnalyzeResponse birdnetAnalyzeResponse = audioAIModelClient.analyze(req);
+
+        return birdnetAnalyzeResponse.getDetections().stream()
+                .max(Comparator.comparingDouble(Detection::getConfidence))
+                .orElse(null);
     }
 
-    public boolean health() {
-        try {
-            var m = webClient.get().uri("/health")
-                    .retrieve().bodyToMono(Map.class).block();
-            return m != null && "ok".equals(m.get("status"));
-        } catch (Exception e) {
-            return false;
-        }
-    }
+
 }
