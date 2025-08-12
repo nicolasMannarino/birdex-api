@@ -16,12 +16,14 @@ poetry install
 # 4. (Opcional) Verificar que los paquetes clave estén instalados
 poetry run python -c "import numpy, scipy, resampy; print('OK:', numpy.__version__, scipy.__version__, resampy.__version__)"
 
+```
 ## 🔹 Ejecución diaria  
 *(Después de reiniciar la PC o cuando quieras levantar el servicio)*
 
 ```bash
 # 1. Entrar al proyecto
-cd ~/desktop/fede/unlam/Proyecto\ Final/proyecto/bx-server/birdnet-service
+cd /bx-server/birdnet-service
 
 # 2. Levantar el servidor FastAPI
 poetry run uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
