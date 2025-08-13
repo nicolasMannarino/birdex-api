@@ -34,3 +34,4 @@ build/
 
 ### AI Model ###
 birdnet-service/.venv
+minio_data

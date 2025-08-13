@@ -13,6 +13,35 @@ services:
       - "5455:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  minio:
+    image: minio/minio
+    ports:
+      - "9100:9000"
+      - "9101:9001"
+    volumes:
+      - ./minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "5566:4566"
+      - "5571:4571"
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION=us-west-2
+      - DEBUG=1
+    volumes:
+      - ./init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh
+      - "/var/run/docker.sock:/var/run/docker.sock"
 
 volumes:
   postgres_data:
