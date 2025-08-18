@@ -13,6 +13,7 @@ services:
       - "5455:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/scripts/bird_insert.sql:/docker-entrypoint-initdb.d/bird_insert.sql:ro
   minio:
     image: minio/minio
     ports:

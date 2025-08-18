@@ -1,32 +1,48 @@
 package com.birdex.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Data;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 @Entity
-@Data
 @Table(name = "birds")
+@Builder
+@Data
 public class BirdEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String birdID;
+    @Column(name = "bird_id")
+    private UUID birdID;
 
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "commonName", nullable = false)
+    @Column(name = "common_name", nullable = false)
     private String commonName;
 
     @Column(name = "size", nullable = false)
     private String size;
 
-    @Column(name = "color", nullable = false)
-    private String color;
+    @Column(name = "description", nullable = false, columnDefinition = "text")
+    private String description;
 
+    @Column(name = "characteristics", nullable = false, columnDefinition = "text")
+    private String characteristics;
+
+    @Column(name = "image", nullable = false)
+    private String image;
+
+    @Column(name = "migratory_wave_url", nullable = false)
+    private String migratoryWaveUrl;
+
+    @OneToMany(mappedBy = "bird", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<BirdColor> colors = new HashSet<>();
+
+    @OneToMany(mappedBy = "bird", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<BirdRarityEntity> rarities = new HashSet<>();
 }
