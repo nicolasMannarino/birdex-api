@@ -3,6 +3,8 @@ package com.birdex.entity;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -41,8 +43,10 @@ public class BirdEntity {
     private String migratoryWaveUrl;
 
     @OneToMany(mappedBy = "bird", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude @EqualsAndHashCode.Exclude
     private Set<BirdColor> colors = new HashSet<>();
 
     @OneToMany(mappedBy = "bird", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude @EqualsAndHashCode.Exclude
     private Set<BirdRarityEntity> rarities = new HashSet<>();
 }

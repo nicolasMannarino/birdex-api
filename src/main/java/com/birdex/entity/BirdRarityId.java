@@ -1,24 +1,15 @@
 package com.birdex.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Embeddable;
 import lombok.*;
+import java.io.Serializable;
+import java.util.UUID;
 
-@Entity
-@Table(name = "bird_rarity",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"bird_id", "rarity_id"}))
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class BirdRarityId {
-
-    @EmbeddedId
-    private BirdRarityId id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("birdId")
-    @JoinColumn(name = "bird_id", nullable = false)
-    private BirdEntity bird;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("rarityId")
-    @JoinColumn(name = "rarity_id", nullable = false)
-    private RarityEntity rarity;
+@Embeddable
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
+@EqualsAndHashCode
+public class BirdRarityId implements Serializable {
+    private UUID birdId;
+    private UUID rarityId;
 }
