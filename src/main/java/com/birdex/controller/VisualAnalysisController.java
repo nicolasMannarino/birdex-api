@@ -10,13 +10,13 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/detect")
 @CrossOrigin(origins = "*")
-public class MockController {
+public class VisualAnalysisController {
 
     @Autowired
     private DetectionService detectionService;
 
     @PostMapping
-    public ResponseEntity<BirdDetectResponse> mockResponse(@RequestBody BirdDetectRequest request) {
+    public ResponseEntity<BirdDetectResponse> analyze(@RequestBody BirdDetectRequest request) {
         BirdDetectResponse response = detectionService.detect(request);
         return ResponseEntity.ok(response);
     }

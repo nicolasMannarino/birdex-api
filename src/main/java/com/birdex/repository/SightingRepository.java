@@ -8,10 +8,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.UUID;
 
-public interface SightingRepository extends JpaRepository<SightingEntity, String> {
-    List<SightingEntity> findByUser(UserEntity user);
-    List<SightingEntity> findByBird(BirdEntity bird);
-    List<SightingEntity> findByUserUserID(String userID);
-    List<SightingEntity> findByBirdBirdID(UUID birdID);
-
-}
+public interface SightingRepository extends JpaRepository<SightingEntity, UUID> { }

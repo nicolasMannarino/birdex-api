@@ -1,6 +1,7 @@
 package com.birdex.entity;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,7 +20,8 @@ public class UserEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String userID;
+    @Column(name = "user_id")
+    private UUID userId;
 
     @Column(name = "username", nullable = false)
     private String username;
@@ -27,7 +29,6 @@ public class UserEntity {
     @Column(name = "password", nullable = false)
     private String password;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email", nullable = false, unique = true)
     private String email;
-
 }

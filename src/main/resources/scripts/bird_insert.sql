@@ -3,7 +3,7 @@
 
 -- ====== EXTENSION ======
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
+CREATE EXTENSION IF NOT EXISTS unaccent;
 -- ====== ESQUEMA ======
 CREATE TABLE IF NOT EXISTS birds (
     bird_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -14,6 +14,25 @@ CREATE TABLE IF NOT EXISTS birds (
     characteristics TEXT NOT NULL,
     image TEXT NOT NULL,
     migratory_wave_url TEXT NOT NULL
+);
+
+-- ====== TABLA USERS ======
+CREATE TABLE IF NOT EXISTS users (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username TEXT NOT NULL,
+    password TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE
+);
+
+-- ====== TABLA SIGHTINGS ======
+CREATE TABLE IF NOT EXISTS sightings (
+    sighting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    location TEXT NOT NULL,
+    dateTime TIMESTAMP NOT NULL,
+    user_id UUID NOT NULL,
+    bird_id UUID NOT NULL,
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_bird_s FOREIGN KEY (bird_id) REFERENCES birds(bird_id) ON DELETE CASCADE
 );
 
 -- Evita duplicados y habilita ON CONFLICT (name) DO NOTHING
@@ -80,6 +99,15 @@ INSERT INTO colors (color_id, name) VALUES
   (gen_random_uuid(), 'Rosado'),
   (gen_random_uuid(), 'Blanquecino')
 ON CONFLICT (name) DO NOTHING;
+
+-- ====== SEED: USERS ======
+INSERT INTO users (user_id, username, password, email) VALUES
+  (gen_random_uuid(), 'lucas', 'pass123', 'lucas@example.com'),
+  (gen_random_uuid(), 'maria', 'pass123', 'maria@example.com'),
+  (gen_random_uuid(), 'juan', 'pass123', 'juan@example.com'),
+  (gen_random_uuid(), 'sofia', 'pass123', 'sofia@example.com'),
+  (gen_random_uuid(), 'martin', 'pass123', 'martin@example.com')
+ON CONFLICT (email) DO NOTHING;
 
 -- ====== SEED: AVES ======
 INSERT INTO birds (bird_id, name, common_name, size, description, characteristics, image, migratory_wave_url) VALUES

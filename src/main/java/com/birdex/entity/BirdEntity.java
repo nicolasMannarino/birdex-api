@@ -1,25 +1,23 @@
 package com.birdex.entity;
 
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(name = "birds")
-@Builder
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "birds")
 public class BirdEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "bird_id")
-    private UUID birdID;
+    private UUID birdId;
 
     @Column(name = "name", nullable = false)
     private String name;
@@ -30,10 +28,10 @@ public class BirdEntity {
     @Column(name = "size", nullable = false)
     private String size;
 
-    @Column(name = "description", nullable = false, columnDefinition = "text")
+    @Column(name = "description", nullable = false)
     private String description;
 
-    @Column(name = "characteristics", nullable = false, columnDefinition = "text")
+    @Column(name = "characteristics", nullable = false)
     private String characteristics;
 
     @Column(name = "image", nullable = false)
@@ -41,12 +39,4 @@ public class BirdEntity {
 
     @Column(name = "migratory_wave_url", nullable = false)
     private String migratoryWaveUrl;
-
-    @OneToMany(mappedBy = "bird", cascade = CascadeType.ALL, orphanRemoval = true)
-    @ToString.Exclude @EqualsAndHashCode.Exclude
-    private Set<BirdColor> colors = new HashSet<>();
-
-    @OneToMany(mappedBy = "bird", cascade = CascadeType.ALL, orphanRemoval = true)
-    @ToString.Exclude @EqualsAndHashCode.Exclude
-    private Set<BirdRarityEntity> rarities = new HashSet<>();
 }

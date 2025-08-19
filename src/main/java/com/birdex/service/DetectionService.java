@@ -17,9 +17,7 @@ public class DetectionService {
     public BirdDetectResponse detect(BirdDetectRequest request) {
         try {
             return modelProcessor.evaluate(request.getFileBase64());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }

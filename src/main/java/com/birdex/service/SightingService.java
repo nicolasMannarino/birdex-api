@@ -25,7 +25,7 @@ public class SightingService {
     private final UserRepository userRepository;
     private final BirdRepository birdRepository;
 
-    @Autowired
+
     public SightingService(SightingRepository sightingRepository, UserRepository userRepository, BirdRepository birdRepository){
         this.sightingRepository = sightingRepository;
         this.userRepository = userRepository;
@@ -39,7 +39,7 @@ public class SightingService {
                                                                             return new RuntimeException("User not found for email: " + request.getEmail());
                                                                         });
         
-        BirdEntity birdEntity = birdRepository.findByCommonName(request.getBirdName()).orElseThrow(() -> {
+        BirdEntity birdEntity = birdRepository.findByCommonNameLike(request.getBirdName()).orElseThrow(() -> {
                                                                             log.warn("No user found for email: {}", request.getBirdName());
                                                                             return new RuntimeException("User not found for email: " + request.getBirdName());
                                                                         });                                                                
