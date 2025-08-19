@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### AI Model ###
+birdnet-service/.venv
+minio_data
