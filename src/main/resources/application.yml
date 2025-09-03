@@ -1,32 +1,33 @@
 spring:
-    application:
-        name: birdex
-    datasource:
-        url: jdbc:postgresql://127.0.0.1:5455/birdex
-        username: admin
-        password: ""
-        # driver-class-name: org.postgresql.Driver
-    jpa:
-        hibernate:
-            ddl-auto: none
-        show-sql: true
+  application:
+    name: birdex
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/birdex
+    username: admin
+    password: ""
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect # Moved under jpa
 
 server:
-    address: 0.0.0.0
-    port: 8080
+  address: 0.0.0.0
+  port: 8080
 
 logging:
-    level:
-        root: INFO
+  level:
+    root: INFO
 
 birdnet:
-    api:
-        base-url: http://localhost:8000
-        timeout-seconds: 60
+  api:
+    base-url: http://localhost:8000
+    timeout-seconds: 60
 
 minio:
-    access-key: minioadmin
-    secret-key: minioadmin
-    region: us-west-2
-    bucket: birdex-bucket
-    endpoint: http://localhost:9100
+  access-key: minioadmin
+  secret-key: minioadmin
+  region: us-west-2
+  bucket: birdex-bucket
+  endpoint: http://localhost:9100
