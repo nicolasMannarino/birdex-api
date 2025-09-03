@@ -17,14 +17,14 @@ public class BirdService {
 
 
     public String getDescription(String commonName) {
-        return birdRepository.findByCommonNameLike(commonName).orElseThrow(() -> {
+        return birdRepository.findFirstByCommonNameContainingIgnoreCase(commonName).orElseThrow(() -> {
             log.warn("No bird found for common name: {}", commonName);
             return new RuntimeException("Bird not found for common name: " + commonName);
         }).getDescription();
     }
 
     public BirdDto getBySpecificName(String specificName){
-        BirdEntity entity = birdRepository.findByName(specificName).orElseThrow(() -> {
+        BirdEntity entity = birdRepository.findFirstByNameContainingIgnoreCase(specificName).orElseThrow(() -> {
             log.warn("No bird found for name: {}", specificName);
             return new RuntimeException("Bird not found for name: " + specificName);
         });

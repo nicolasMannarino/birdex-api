@@ -39,7 +39,7 @@ public class SightingService {
                                                                             return new RuntimeException("User not found for email: " + request.getEmail());
                                                                         });
         
-        BirdEntity birdEntity = birdRepository.findByCommonNameLike(request.getBirdName()).orElseThrow(() -> {
+        BirdEntity birdEntity = birdRepository.findFirstByCommonNameContainingIgnoreCase(request.getBirdName()).orElseThrow(() -> {
                                                                             log.warn("No user found for email: {}", request.getBirdName());
                                                                             return new RuntimeException("User not found for email: " + request.getBirdName());
                                                                         });                                                                
