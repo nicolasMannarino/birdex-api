@@ -39,4 +39,7 @@ public class BirdEntity {
 
     @Column(name = "migratory_wave_url", nullable = false)
     private String migratoryWaveUrl;
+
+
+
 }
