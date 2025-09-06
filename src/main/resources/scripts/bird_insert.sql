@@ -363,3 +363,54 @@ INSERT INTO bird_color (bird_id, color_id)
 SELECT b.bird_id, c.color_id FROM birds b, colors c
 WHERE b.name = 'Thraupis sayaca' AND c.name IN ('Celeste','Gris')
 ON CONFLICT DO NOTHING;
+
+
+INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+SELECT gen_random_uuid(), 'Plaza San Martín, Buenos Aires', NOW() - interval '10 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Furnarius rufus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+SELECT gen_random_uuid(), 'Reserva Ecológica Costanera Sur', NOW() - interval '7 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Phoenicopterus chilensis'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+SELECT gen_random_uuid(), 'Laguna de Chascomús', NOW() - interval '5 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Cygnus melancoryphus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+SELECT gen_random_uuid(), 'Parque General San Martín, Mendoza', NOW() - interval '3 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Vanellus chilensis'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+SELECT gen_random_uuid(), 'Estancia El Destino, Magdalena', NOW() - interval '1 day',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Buteogallus coronatus'
+ON CONFLICT DO NOTHING;
+
+-- Otro par de avistajes repetidos para el mismo usuario
+INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+SELECT gen_random_uuid(), 'Jardín Botánico, Buenos Aires', NOW() - interval '2 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+SELECT gen_random_uuid(), 'Plaza de Mayo, Buenos Aires', NOW(),
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;

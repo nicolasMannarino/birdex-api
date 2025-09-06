@@ -4,6 +4,10 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+birdnet-service/__pycache__/server.cpython-311.pyc
+
+
+
 ### STS ###
 .apt_generated
 .classpath
