@@ -1,5 +1,7 @@
 import base64
 import os
+import sys
+import io
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +11,20 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+import builtins
+
+open_builtin = open
+def open_utf8(path, mode="r", *args, **kwargs):
+    if "b" not in mode and "encoding" not in kwargs:
+        kwargs["encoding"] = "utf-8"
+    return open_builtin(path, mode, *args, **kwargs)
+
+builtins.open = open_utf8
+os.environ["PYTHONUTF8"] = "1"
+os.environ["PYTHONIOENCODING"] = "utf-8"
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 # Cargar .env
 load_dotenv()

@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.UUID;
 
-public interface SightingRepository extends JpaRepository<SightingEntity, UUID> { }
+public interface SightingRepository extends JpaRepository<SightingEntity, UUID> {
+    List<SightingEntity> findByUserEmail(String email);
+}
