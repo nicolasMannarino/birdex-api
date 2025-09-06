@@ -28,30 +28,32 @@ public class SightingService {
 
 
     public void registerSighting(SightingRequest request) {
-        
-        UserEntity userEntity = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> {
-                                                                            log.warn("No user found for email: {}", request.getEmail());
-                                                                            return new RuntimeException("User not found for email: " + request.getEmail());
-                                                                        });
-        
-        BirdEntity birdEntity = birdRepository.findFirstByCommonNameContainingIgnoreCase(request.getBirdName()).orElseThrow(() -> {
-                                                                            log.warn("No bird found for name: {}", request.getBirdName());
-                                                                            return new RuntimeException("User not found for email: " + request.getBirdName());
-                                                                        });                                                                
-        
-        SightingEntity sightingEntity = SightingEntity.builder()
-                                .dateTime(request.getDateTime())
-                                .location(request.getLocation())
-                                .user(userEntity)
-                                .bird(birdEntity)
-                                .build();
 
+        UserEntity userEntity = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> {
+            log.warn("No user found for email: {}", request.getEmail());
+            return new RuntimeException("User not found for email: " + request.getEmail());
+        });
+
+        BirdEntity birdEntity = birdRepository.findFirstByCommonNameContainingIgnoreCase(request.getBirdName()).orElseThrow(() -> {
+            log.warn("No bird found for name: {}", request.getBirdName());
+            return new RuntimeException("Bird not found for name: " + request.getBirdName());
+        });
+
+        SightingEntity sightingEntity = SightingEntity.builder()
+                .dateTime(request.getDateTime())
+                .location(request.getLocation())
+                .user(userEntity)
+                .bird(birdEntity)
+                .build();
 
         String mimeType = FileMetadataExtractor.extractMimeType(request.getBase64());
         byte[] data = FileMetadataExtractor.extractData(request.getBase64());
-        String key = FilenameGenerator.generate(request.getEmail(), request.getBirdName());
+
+        String key = FilenameGenerator.generate(request.getEmail(), request.getBirdName(), mimeType);
+
         String fileUrl = bucketService.upload(key, data, mimeType);
-    
-        sightingRepository.save(sightingEntity);                                                                
+
+
+        sightingRepository.save(sightingEntity);
     }
 }
