@@ -2,10 +2,12 @@ spring:
   application:
     name: birdex
   datasource:
-    url: jdbc:postgresql://127.0.0.1:5432/birdex
+    url: jdbc:postgresql://127.0.0.1:5455/birdex
     username: admin
     password: ""
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connectionInitSql: "SET TIME ZONE 'America/Argentina/Buenos_Aires'"
   jpa:
     hibernate:
       ddl-auto: none
