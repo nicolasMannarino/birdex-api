@@ -28,8 +28,6 @@ public class SightingService {
 
 
     public void registerSighting(SightingRequest request) {
-
-        System.out.println("ASJDASLKJDASLÑKDJASKLDASLK " + request.toString());
         
         UserEntity userEntity = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> {
                                                                             log.warn("No user found for email: {}", request.getEmail());
