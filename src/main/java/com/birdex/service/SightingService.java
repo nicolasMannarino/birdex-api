@@ -1,6 +1,8 @@
 package com.birdex.service;
 
 
+import com.birdex.domain.SightingImageRequest;
+import com.birdex.domain.SightingImagesByEmailResponse;
 import com.birdex.utils.FileMetadataExtractor;
 import com.birdex.utils.FilenameGenerator;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,8 @@ import com.birdex.repository.SightingRepository;
 import com.birdex.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 
 @Service
 @Slf4j
@@ -55,5 +59,12 @@ public class SightingService {
 
 
         sightingRepository.save(sightingEntity);
+    }
+
+    public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest sightingImageRequest) {
+        List<String> images = bucketService.listImagesAsBase64(sightingImageRequest.getEmail(), sightingImageRequest.getBirdName());
+        return SightingImagesByEmailResponse.builder()
+                .base64Images(images)
+                .build();
     }
 }
