@@ -3,6 +3,8 @@ package com.birdex.service;
 
 import com.birdex.domain.SightingImageRequest;
 import com.birdex.domain.SightingImagesByEmailResponse;
+import com.birdex.exception.BirdNotFoundException;
+import com.birdex.exception.UserNotFoundException;
 import com.birdex.utils.FileMetadataExtractor;
 import com.birdex.utils.FilenameGenerator;
 import lombok.RequiredArgsConstructor;
@@ -35,12 +37,12 @@ public class SightingService {
 
         UserEntity userEntity = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> {
             log.warn("No user found for email: {}", request.getEmail());
-            return new RuntimeException("User not found for email: " + request.getEmail());
+            return new UserNotFoundException(request.getEmail());
         });
 
-        BirdEntity birdEntity = birdRepository.findFirstByCommonNameContainingIgnoreCase(request.getBirdName()).orElseThrow(() -> {
+        BirdEntity birdEntity = birdRepository.findFirstByNameContainingIgnoreCase(request.getBirdName()).orElseThrow(() -> {
             log.warn("No bird found for name: {}", request.getBirdName());
-            return new RuntimeException("Bird not found for name: " + request.getBirdName());
+            return new BirdNotFoundException(request.getBirdName());
         });
 
         SightingEntity sightingEntity = SightingEntity.builder()
@@ -56,8 +58,6 @@ public class SightingService {
         String key = FilenameGenerator.generate(request.getEmail(), request.getBirdName(), mimeType);
 
         String fileUrl = bucketService.upload(key, data, mimeType);
-
-
         sightingRepository.save(sightingEntity);
     }
 

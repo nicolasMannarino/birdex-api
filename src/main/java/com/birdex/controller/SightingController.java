@@ -23,7 +23,7 @@ public class SightingController {
     @PostMapping
     public ResponseEntity<Void> registerSighting(@RequestBody SightingRequest request) {
         sightingService.registerSighting(request);
-        return ResponseEntity.ok(null);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{email}/{birdName}")
