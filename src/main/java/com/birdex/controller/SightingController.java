@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/sightning")
+@RequestMapping("/sighting")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class SightingController {
