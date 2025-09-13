@@ -13,4 +13,12 @@ public class BucketProperties {
     private String accessKey;
     private String secretKey;
     private String region;
+    private Birds birds;
+
+
+    @Data
+    public static class Birds {
+        private String bucket;
+        private String profileObjectName = "profile";
+    }
 }

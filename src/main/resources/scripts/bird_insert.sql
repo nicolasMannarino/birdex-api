@@ -414,3 +414,12 @@ SELECT gen_random_uuid(), 'Plaza de Mayo, Buenos Aires', NOW(),
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris'
 ON CONFLICT DO NOTHING;
+
+
+INSERT INTO bird_rarity (bird_id, rarity_id)
+SELECT b.bird_id, r.rarity_id
+FROM birds b
+JOIN rarities r ON r.name = 'Común'
+LEFT JOIN bird_rarity br ON br.bird_id = b.bird_id
+WHERE br.bird_id IS NULL
+ON CONFLICT DO NOTHING;

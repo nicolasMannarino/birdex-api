@@ -1,16 +1,17 @@
 package com.birdex.service;
 
 
-import com.birdex.domain.SightingImageRequest;
-import com.birdex.domain.SightingImagesByEmailResponse;
+import com.birdex.domain.*;
+import com.birdex.dto.SightingDto;
 import com.birdex.exception.BirdNotFoundException;
 import com.birdex.exception.UserNotFoundException;
+import com.birdex.mapper.SightingMapper;
+import com.birdex.repository.BirdRarityRepository;
 import com.birdex.utils.FileMetadataExtractor;
 import com.birdex.utils.FilenameGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import com.birdex.domain.SightingRequest;
 import com.birdex.entity.BirdEntity;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
@@ -20,7 +21,10 @@ import com.birdex.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -31,6 +35,7 @@ public class SightingService {
     private final UserRepository userRepository;
     private final BirdRepository birdRepository;
     private final BucketService bucketService;
+    private final BirdRarityRepository birdRarityRepository;
 
 
     public void registerSighting(SightingRequest request) {
@@ -67,4 +72,60 @@ public class SightingService {
                 .base64Images(images)
                 .build();
     }
+
+    public SightingByUserResponse getSightingsByUser(String email) {
+        validateIfEmailExists(email);
+
+        List<SightingEntity> sightingEntity = sightingRepository.findByUserEmail(email);
+        List<SightingDto> sightingDtos = SightingMapper.toDtoList(sightingEntity);
+
+        List<SightingResponse> sightingResponseList = buildResponseList(sightingDtos);
+        sortList(sightingResponseList);
+
+        return SightingByUserResponse.builder()
+                .sightingResponseList(sightingResponseList)
+                .build();
+
+    }
+
+    private void validateIfEmailExists(String email) {
+        userRepository.findByEmail(email).orElseThrow(() -> {
+            log.warn("No user found for email: {}", email);
+            return new UserNotFoundException(email);
+        });
+    }
+
+    private List<SightingResponse> buildResponseList(List<SightingDto> sightingDtos) {
+        List<SightingResponse> sightingResponseList = new ArrayList<>();
+        for (SightingDto dto : sightingDtos) {
+
+            SightingResponse.SightingResponseBuilder builder = SightingResponse.builder();
+            builder.commonName(dto.birdCommonName())
+                    .birdName(dto.birdName())
+                    .dateTime(dto.dateTime());
+
+            Optional<String> rarity = birdRarityRepository.findRarityNameByBirdName(dto.birdName());
+            builder.rarity(rarity.get());
+            String profileBase64 = bucketService.getBirdProfileBase64(dto.birdName());
+            builder.profilePhotoBase64(profileBase64);
+
+            SightingResponse response = builder.build();
+
+            sightingResponseList.add(response);
+        }
+
+        return sightingResponseList;
+    }
+
+
+    private void sortList(List<SightingResponse> sightingResponseList) {
+        sightingResponseList.sort(
+                Comparator.comparing(
+                        SightingResponse::getDateTime,
+                        Comparator.nullsLast(Comparator.reverseOrder())
+                )
+        );
+    }
+
+
 }

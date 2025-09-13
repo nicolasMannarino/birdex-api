@@ -1,6 +1,7 @@
 package com.birdex.controller;
 
 
+import com.birdex.domain.SightingByUserResponse;
 import com.birdex.domain.SightingImageRequest;
 import com.birdex.domain.SightingImagesByEmailResponse;
 import com.birdex.domain.SightingRequest;
@@ -36,5 +37,11 @@ public class SightingController {
 
         return ResponseEntity.ok(sightingService.getSightingImagesByUserAndBirdName(request));
     }
+
+    @GetMapping("/{email}")
+    public ResponseEntity<SightingByUserResponse> getSightingsByUser(@PathVariable String email) {
+        return ResponseEntity.ok(sightingService.getSightingsByUser(email));
+    }
+
 }
 
