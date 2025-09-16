@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -218,11 +219,27 @@ public class BucketService {
     public String getBirdProfileBase64(String birdName) {
         String bucket = birdsBucket();
         String key = resolveProfileKey(bucket, birdName);
-        try (InputStream in = s3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())) {
+
+        try (ResponseInputStream<GetObjectResponse> in =
+                     s3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())) {
+
             byte[] bytes = readAll(in);
             return Base64.getEncoder().encodeToString(bytes);
+
         } catch (NoSuchKeyException e) {
-            throw new RuntimeException("No existe foto de perfil para '" + birdName + "'", e);
+            log.info("No existe foto de perfil '{}'/'{}'", bucket, key);
+            return "";
+
+        } catch (S3Exception e) {
+            String code = e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null;
+            if (e.statusCode() == 404 || "NoSuchKey".equals(code)) {
+                log.info("No existe foto de perfil '{}'/'{}' ({} {})", bucket, key, e.statusCode(), code);
+                return "";
+            }
+            log.error("Error S3 leyendo perfil '{}'/'{}': {}", bucket, key,
+                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage(), e);
+            throw new RuntimeException("No se pudo obtener la imagen de perfil desde MinIO", e);
+
         } catch (Exception e) {
             log.error("Error leyendo perfil '{}'/'{}': {}", bucket, key, e.getMessage(), e);
             throw new RuntimeException("No se pudo obtener la imagen de perfil desde MinIO", e);
