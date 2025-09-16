@@ -10,4 +10,7 @@ import java.util.UUID;
 
 public interface SightingRepository extends JpaRepository<SightingEntity, UUID> {
     List<SightingEntity> findByUserEmail(String email);
+    List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailOrderByDateTimeDesc(String birdName, String email);
+
+    List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailNotOrderByDateTimeDesc(String birdName, String email);
 }

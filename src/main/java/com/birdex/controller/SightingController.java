@@ -5,6 +5,7 @@ import com.birdex.domain.SightingByUserResponse;
 import com.birdex.domain.SightingImageRequest;
 import com.birdex.domain.SightingImagesByEmailResponse;
 import com.birdex.domain.SightingRequest;
+import com.birdex.dto.SightingsForBirdResponse;
 import com.birdex.service.SightingService;
 
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,12 @@ public class SightingController {
                 .build();
 
         return ResponseEntity.ok(sightingService.getSightingImagesByUserAndBirdName(request));
+    }
+
+    @GetMapping("/{email}/{birdName}/all")
+    public ResponseEntity<SightingsForBirdResponse> getSightingsMineAndOthers(@PathVariable String email,
+                                                                              @PathVariable String birdName) {
+        return ResponseEntity.ok(sightingService.getSightingsMineAndOthers(email, birdName));
     }
 
     @GetMapping("/{email}")
