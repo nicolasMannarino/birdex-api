@@ -5,13 +5,17 @@ import com.birdex.dto.BirdProgressProfile;
 import com.birdex.dto.BirdProgressResponse;
 import com.birdex.entity.BirdEntity;
 import com.birdex.entity.BirdNamesView;
+import com.birdex.entity.BirdSummary;
 import com.birdex.mapper.BirdMapper;
 import com.birdex.repository.BirdRarityRepository;
 import com.birdex.repository.BirdRepository;
 import com.birdex.utils.Slugs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,4 +71,17 @@ public class BirdService {
                 .list(list)
                 .build();
     }
+
+    public Page<BirdSummary> search(String rarity, String color, String size, Pageable pageable) {
+        String r = normalize(rarity);
+        String c = normalize(color);
+        String s = normalize(size);
+
+        return birdRepository.searchBirds(r, c, s, pageable);
+    }
+
+    private String normalize(String v) {
+        return StringUtils.hasText(v) ? v.trim() : null;
+    }
+
 }
