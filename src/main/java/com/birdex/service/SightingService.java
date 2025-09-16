@@ -14,6 +14,12 @@ import com.birdex.utils.FilenameGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.util.StringUtils;
 import com.birdex.entity.BirdEntity;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
@@ -133,6 +139,25 @@ public class SightingService {
                 .mine(mine)
                 .others(others)
                 .build();
+    }
+
+    public Page<SightingResponse> searchSightings(String rarity, String color, String zone, String size,
+                                                  int page, int sizePage) {
+        Pageable pageable = PageRequest.of(page, sizePage, Sort.by(Sort.Direction.DESC, "dateTime"));
+
+        String r = n(rarity);
+        String c = n(color);
+        String s = n(size);
+
+        Page<SightingEntity> result = sightingRepository.searchSightings(r, c, s, pageable);
+
+        List<SightingDto> dtos = SightingMapper.toDtoList(result.getContent());
+        List<SightingResponse> responses = buildResponseList(dtos);
+        return new PageImpl<>(responses, pageable, result.getTotalElements());
+    }
+
+    private String n(String v) {
+        return (v != null && !v.isBlank()) ? v.trim() : null;
     }
 
     private SightingFullResponse toFullResponse(SightingEntity se,
