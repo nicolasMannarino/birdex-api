@@ -1,21 +1,31 @@
 package com.birdex.controller;
 
+
 import com.birdex.dto.BirdDto;
 import com.birdex.dto.BirdProgressResponse;
 import com.birdex.entity.BirdSummary;
 import com.birdex.service.BirdService;
+import com.birdex.dto.ErrorResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/bird")
 @CrossOrigin(origins = "*")
+@Tag(name = "Birds", description = "Catálogo de aves y búsqueda")
 public class BirdController {
 
     private final BirdService birdService;
@@ -25,31 +35,100 @@ public class BirdController {
     }
 
     @GetMapping("/all")
+    @Operation(
+            summary = "Obtener progreso/listado de aves",
+            description = "Devuelve un resumen con perfiles de aves (para pantalla de progreso)."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "OK",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BirdProgressResponse.class),
+                            examples = @ExampleObject(value = """
+                         { "list": [
+                           { "photoBase64": "data:image/jpeg;base64,...",
+                             "rarity": "COMMON",
+                             "name": "Turdus rufiventris",
+                             "commonName": "Zorzal colorado" }
+                         ]}
+                       """))
+            ),
+            @ApiResponse(responseCode = "500", description = "Error interno",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<BirdProgressResponse> getBirds() {
         BirdProgressResponse response = birdService.getBirds();
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/description/{commonName}")
+    @GetMapping(value = "/description/{commonName}", produces = MediaType.TEXT_PLAIN_VALUE)
+    @Operation(
+            summary = "Descripción por nombre común",
+            parameters = @Parameter(name = "commonName",
+                    description = "Nombre común del ave",
+                    example = "Zorzal colorado")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Texto descriptivo",
+                    content = @Content(mediaType = "text/plain",
+                            schema = @Schema(implementation = String.class),
+                            examples = @ExampleObject(value = "Ave de tamaño mediano..."))),
+            @ApiResponse(responseCode = "404", description = "Ave no encontrada",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Error interno",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<String> getDescription(@PathVariable String commonName) {
         String response = birdService.getDescription(commonName);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{specificName}")
+    @Operation(
+            summary = "Obtener ave por nombre científico",
+            parameters = @Parameter(name = "specificName",
+                    description = "Nombre científico (específico)",
+                    example = "Turdus rufiventris")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "OK",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BirdDto.class))),
+            @ApiResponse(responseCode = "404", description = "Ave no encontrada",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Error interno",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<BirdDto> getBirdBySpecificName(@PathVariable String specificName) {
         BirdDto response = birdService.getBySpecificName(specificName);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping
+    @Operation(
+            summary = "Buscar aves (paginado)",
+            description = "Filtra por rareza, color y tamaño. Orden configurable con `sort=campo,asc|desc`."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Resultados paginados (Page<BirdSummary>)"),
+            @ApiResponse(responseCode = "400", description = "Parámetros inválidos",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Error interno",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public Page<BirdSummary> searchBirds(
+            @Parameter(description = "Rareza (p. ej. Comun, Poco comun, Raro, Epico, Legendario)", example = "Comun")
             @RequestParam(required = false) String rarity,
+            @Parameter(description = "Color dominante", example = "amarillo")
             @RequestParam(required = false) String color,
+            @Schema(description = "Tamaño (Grande, Muy grande, Mediano, Pequeño)", example = "Grande")
             @RequestParam(required = false) String size,
-            // @RequestParam(required = false) String zone,
+            @Parameter(description = "Número de página (base 0)", example = "0")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamaño de página", example = "20")
             @RequestParam(defaultValue = "20") int sizePage,
+            @Parameter(description = "Orden: `campo,asc|desc`", example = "name,asc")
             @RequestParam(defaultValue = "name,asc") String sort
     ) {
         Sort sortObj = parseSort(sort);

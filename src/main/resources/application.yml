@@ -33,3 +33,4 @@ minio:
   birds:
     bucket: birds
     profile-object-name: profile
+
