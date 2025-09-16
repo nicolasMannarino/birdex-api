@@ -6,6 +6,7 @@ import com.birdex.dto.BirdProgressResponse;
 import com.birdex.entity.BirdEntity;
 import com.birdex.entity.BirdNamesView;
 import com.birdex.mapper.BirdMapper;
+import com.birdex.repository.BirdRarityRepository;
 import com.birdex.repository.BirdRepository;
 import com.birdex.utils.Slugs;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class BirdService {
     private final BirdRepository birdRepository;
     private final BirdMapper birdMapper;
     private final BucketService bucketService;
+    private final BirdRarityRepository birdRarityRepository;
 
 
     public String getDescription(String commonName) {
@@ -49,9 +51,11 @@ public class BirdService {
         for (BirdNamesView b : birds) {
             String slugifyName = Slugs.of(b.getName());
             String birdPhoto = bucketService.getBirdProfileBase64(slugifyName);
+            String rarity = birdRarityRepository.findRarityNameByBirdName(b.getName()).get();
 
             BirdProgressProfile bpp = BirdProgressProfile.builder()
                     .name(b.getName())
+                    .rarity(rarity)
                     .commonName(b.getCommonName())
                     .photoBase64(birdPhoto)
                     .build();
