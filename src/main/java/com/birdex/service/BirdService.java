@@ -55,7 +55,7 @@ public class BirdService {
         for (BirdNamesView b : birds) {
             String slugifyName = Slugs.of(b.getName());
             String birdPhoto = bucketService.getBirdProfileBase64(slugifyName);
-            String rarity = birdRarityRepository.findRarityNameByBirdName(b.getName()).get();
+            String rarity = birdRarityRepository.findRarityNameByBirdName(b.getName()).orElse("");
 
             BirdProgressProfile bpp = BirdProgressProfile.builder()
                     .name(b.getName())
