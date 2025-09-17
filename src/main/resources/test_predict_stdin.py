@@ -14,7 +14,7 @@ CLASS_NAMES = ['Paroaria coronata', 'Ramphastos toco']
 THRESHOLD = 0.95
 
 # Construimos la ruta absoluta del modelo
-MODEL_PATH = os.path.join(os.path.dirname(__file__), 'modelo_paroaria_mejor.pth')
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'modelo_imagenes_birdex.pth')
 
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
