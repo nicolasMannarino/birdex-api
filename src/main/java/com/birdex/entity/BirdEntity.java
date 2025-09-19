@@ -7,10 +7,16 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 @Entity
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
 @Table(name = "birds")
 public class BirdEntity {
 
@@ -37,9 +43,6 @@ public class BirdEntity {
     @Column(name = "image", nullable = false)
     private String image;
 
-    @Column(name = "migratory_wave_url", nullable = false)
-    private String migratoryWaveUrl;
-
-
-
+    @OneToMany(mappedBy = "bird", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Set<MigratoryWaveEntity> migratoryWaves = new HashSet<>();
 }

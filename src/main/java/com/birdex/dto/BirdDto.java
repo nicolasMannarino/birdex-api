@@ -1,10 +1,12 @@
 package com.birdex.dto;
 
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
+import java.util.List;
+import java.util.Map;
 
 @Data @NoArgsConstructor @AllArgsConstructor
 @Schema(name = "Bird", description = "Detalle de ave")
@@ -27,6 +29,10 @@ public class BirdDto {
     @Schema(description = "URL de imagen", example = "https://cdn.birdex.com/img/zorzal.jpg")
     private String image;
 
-    @Schema(description = "URL a ola migratoria (si aplica)", example = "https://...")
-    private String migratoryWaveUrl;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Schema(
+            description = "Ola migratoria: clave=mes (1..12), valor=lista de provincias",
+            example = "{\"3\":[\"Buenos Aires\"],\"4\":[\"Jujuy\"],\"5\":[\"Río Negro\"]}"
+    )
+    private Map<Short, List<String>> migratoryWave;
 }

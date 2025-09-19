@@ -1,13 +1,16 @@
 package com.birdex.mapper;
 
-import com.birdex.entity.BirdEntity;
 import com.birdex.dto.BirdDto;
-import org.mapstruct.*;
+import com.birdex.entity.BirdEntity;
+import com.birdex.entity.MigratoryWaveEntity;
 import org.springframework.stereotype.Component;
 
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class BirdMapper {
+
     public BirdDto toDto(BirdEntity entity) {
         if (entity == null) return null;
 
@@ -18,7 +21,25 @@ public class BirdMapper {
         dto.setDescription(entity.getDescription());
         dto.setCharacteristics(entity.getCharacteristics());
         dto.setImage(entity.getImage());
-        dto.setMigratoryWaveUrl(entity.getMigratoryWaveUrl());
+
+        if (entity.getMigratoryWaves() != null && !entity.getMigratoryWaves().isEmpty()) {
+            Map<Short, List<String>> wave = entity.getMigratoryWaves().stream()
+                    .collect(Collectors.groupingBy(
+                            MigratoryWaveEntity::getMonth,
+                            TreeMap::new,
+                            Collectors.mapping(
+                                    mw -> mw.getProvince().getName(),
+                                    Collectors.collectingAndThen(
+                                            Collectors.toCollection(() -> new TreeSet<>(String.CASE_INSENSITIVE_ORDER)),
+                                            ArrayList::new
+                                    )
+                            )
+                    ));
+            dto.setMigratoryWave(wave);
+        } else {
+            dto.setMigratoryWave(Collections.emptyMap());
+        }
+
         return dto;
     }
 
@@ -26,14 +47,12 @@ public class BirdMapper {
         if (dto == null) return null;
 
         BirdEntity entity = new BirdEntity();
-
         entity.setName(dto.getName());
         entity.setCommonName(dto.getCommonName());
         entity.setSize(dto.getSize());
         entity.setDescription(dto.getDescription());
         entity.setCharacteristics(dto.getCharacteristics());
         entity.setImage(dto.getImage());
-        entity.setMigratoryWaveUrl(dto.getMigratoryWaveUrl());
         return entity;
     }
 }

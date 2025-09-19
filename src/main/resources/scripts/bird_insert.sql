@@ -1,9 +1,11 @@
 -- 001_all.sql  (PostgreSQL)
 -- Crea extensión, esquema y datos iniciales para birds/colors/rarities + tablas puente
+-- + Provinces y Migratory Waves (mes/provincia por ave)
 
 -- ====== EXTENSION ======
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS unaccent;
+
 -- ====== ESQUEMA ======
 CREATE TABLE IF NOT EXISTS birds (
     bird_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -12,9 +14,21 @@ CREATE TABLE IF NOT EXISTS birds (
     size TEXT NOT NULL,
     description TEXT NOT NULL,
     characteristics TEXT NOT NULL,
-    image TEXT NOT NULL,
-    migratory_wave_url TEXT NOT NULL
+    image TEXT NOT NULL
+    -- migratory_wave_url ELIMINADA
 );
+
+-- En caso de que la DB ya exista con migratory_wave_url, la quitamos:
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'birds' AND column_name = 'migratory_wave_url'
+    ) THEN
+        EXECUTE 'ALTER TABLE birds DROP COLUMN IF EXISTS migratory_wave_url';
+    END IF;
+END $$;
 
 -- ====== TABLA USERS ======
 CREATE TABLE IF NOT EXISTS users (
@@ -25,10 +39,11 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- ====== TABLA SIGHTINGS ======
+-- Nota: la columna se llama dateTime (camelCase). Alineá tu @Column(name="dateTime") en JPA.
 CREATE TABLE IF NOT EXISTS sightings (
     sighting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     location TEXT NOT NULL,
-    dateTime TIMESTAMP NOT NULL,
+    "dateTime" TIMESTAMP NOT NULL,
     user_id UUID NOT NULL,
     bird_id UUID NOT NULL,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
@@ -72,6 +87,54 @@ CREATE TABLE IF NOT EXISTS bird_rarity (
     CONSTRAINT fk_rarity FOREIGN KEY (rarity_id) REFERENCES rarities(rarity_id) ON DELETE CASCADE
 );
 
+-- ====== PROVINCES ======
+CREATE TABLE IF NOT EXISTS provinces (
+    province_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        TEXT NOT NULL UNIQUE
+);
+
+INSERT INTO provinces (name) VALUES
+  ('Buenos Aires'),
+  ('Ciudad Autónoma de Buenos Aires'),
+  ('Catamarca'),
+  ('Chaco'),
+  ('Chubut'),
+  ('Córdoba'),
+  ('Corrientes'),
+  ('Entre Ríos'),
+  ('Formosa'),
+  ('Jujuy'),
+  ('La Pampa'),
+  ('La Rioja'),
+  ('Mendoza'),
+  ('Misiones'),
+  ('Neuquén'),
+  ('Río Negro'),
+  ('Salta'),
+  ('San Juan'),
+  ('San Luis'),
+  ('Santa Cruz'),
+  ('Santa Fe'),
+  ('Santiago del Estero'),
+  ('Tierra del Fuego'),
+  ('Tucumán')
+ON CONFLICT (name) DO NOTHING;
+
+-- ====== MIGRATORY WAVES (mes/provincia por ave) ======
+CREATE TABLE IF NOT EXISTS migratory_waves (
+    bird_id     UUID     NOT NULL,
+    month       SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
+    province_id UUID     NOT NULL,
+    -- PK compuesta permite múltiples provincias por mes para la misma ave
+    CONSTRAINT migratory_waves_pk PRIMARY KEY (bird_id, month, province_id),
+    CONSTRAINT fk_wave_bird     FOREIGN KEY (bird_id)     REFERENCES birds(bird_id)     ON DELETE CASCADE,
+    CONSTRAINT fk_wave_province FOREIGN KEY (province_id) REFERENCES provinces(province_id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_wave_bird_month   ON migratory_waves (bird_id, month);
+CREATE INDEX IF NOT EXISTS idx_wave_month        ON migratory_waves (month);
+CREATE INDEX IF NOT EXISTS idx_wave_province     ON migratory_waves (province_id);
+
 -- ====== SEED: RAREZAS ======
 INSERT INTO rarities (rarity_id, name) VALUES
   (gen_random_uuid(), 'Común'),
@@ -110,91 +173,91 @@ INSERT INTO users (user_id, username, password, email) VALUES
 ON CONFLICT (email) DO NOTHING;
 
 -- ====== SEED: AVES ======
-INSERT INTO birds (bird_id, name, common_name, size, description, characteristics, image, migratory_wave_url) VALUES
+INSERT INTO birds (bird_id, name, common_name, size, description, characteristics, image) VALUES
   (gen_random_uuid(), 'Furnarius rufus', 'Hornero', 'Mediano',
    'Ave emblemática que construye nidos de barro con forma de horno.',
    'Nido de barro; territorial; frecuente en ciudades y áreas rurales.',
-   'https://example.com/img/furnarius_rufus.jpg', 'https://example.com/migratory/furnarius_rufus'),
+   'https://example.com/img/furnarius_rufus.jpg'),
 
   (gen_random_uuid(), 'Gubernatrix cristata', 'Cardenal amarillo', 'Mediano',
    'Passeriforme amarillo con máscara negra y cresta conspicua.',
    'Canto potente; matorrales y bosques abiertos; muy presionado por captura.',
-   'https://example.com/img/gubernatrix_cristata.jpg', 'https://example.com/migratory/gubernatrix_cristata'),
+   'https://example.com/img/gubernatrix_cristata.jpg'),
 
   (gen_random_uuid(), 'Paroaria coronata', 'Cardenal común', 'Mediano',
    'Cresta roja, dorso gris, partes inferiores blancas.',
    'Común en parques y jardines; gregario; omnívoro.',
-   'https://example.com/img/paroaria_coronata.jpg', 'https://example.com/migratory/paroaria_coronata'),
+   'https://example.com/img/paroaria_coronata.jpg'),
 
   (gen_random_uuid(), 'Chauna torquata', 'Chajá', 'Grande',
    'Ave grande de humedales con potente vocalización y espolones alares.',
    'Parejas estables; vuela bien; frecuente en lagunas.',
-   'https://example.com/img/chauna_torquata.jpg', 'https://example.com/migratory/chauna_torquata'),
+   'https://example.com/img/chauna_torquata.jpg'),
 
   (gen_random_uuid(), 'Rhea americana', 'Ñandú grande', 'Muy grande',
    'Ratite corredora de pastizales abiertos.',
    'Gregario; gran corredor; nidos comunales.',
-   'https://example.com/img/rhea_americana.jpg', 'https://example.com/migratory/rhea_americana'),
+   'https://example.com/img/rhea_americana.jpg'),
 
   (gen_random_uuid(), 'Rhea pennata', 'Ñandú petiso', 'Muy grande',
    'Ratite patagónica, más pequeño y críptico que R. americana.',
    'Adaptado a ambientes fríos y ventosos; baja densidad.',
-   'https://example.com/img/rhea_pennata.jpg', 'https://example.com/migratory/rhea_pennata'),
+   'https://example.com/img/rhea_pennata.jpg'),
 
   (gen_random_uuid(), 'Phoenicopterus chilensis', 'Flamenco austral', 'Grande',
    'Flamenco rosado pálido; filtra alimento en aguas someras.',
    'Colonial; movimientos locales amplios; sensible a disturbios.',
-   'https://example.com/img/phoenicopterus_chilensis.jpg', 'https://example.com/migratory/phoenicopterus_chilensis'),
+   'https://example.com/img/phoenicopterus_chilensis.jpg'),
 
   (gen_random_uuid(), 'Ramphastos toco', 'Tucán toco', 'Grande',
    'Mayor de los tucanes, con gran pico anaranjado.',
    'Principalmente frugívoro; conspicuo; usa cavidades para nidificar.',
-   'https://example.com/img/ramphastos_toco.jpg', 'https://example.com/migratory/ramphastos_toco'),
+   'https://example.com/img/ramphastos_toco.jpg'),
 
   (gen_random_uuid(), 'Turdus rufiventris', 'Zorzal colorado', 'Mediano',
    'Zorzal de vientre rufo y dorso pardo; canto melodioso.',
    'Común en jardines; dieta variada; anida en arbustos.',
-   'https://example.com/img/turdus_rufiventris.jpg', 'https://example.com/migratory/turdus_rufiventris'),
+   'https://example.com/img/turdus_rufiventris.jpg'),
 
   (gen_random_uuid(), 'Cyanocompsa brissonii', 'Reinamora grande', 'Mediano',
    'Macho azul intenso con tonos negros; robusto.',
    'Consume semillas y frutos; discreto en matorrales.',
-   'https://example.com/img/cyanocompsa_brissonii.jpg', 'https://example.com/migratory/cyanocompsa_brissonii'),
+   'https://example.com/img/cyanocompsa_brissonii.jpg'),
 
   (gen_random_uuid(), 'Cygnus melancoryphus', 'Cisne de cuello negro', 'Grande',
    'Cuerpo blanco y cuello negro; lagunas y estuarios.',
    'Fidelidad de pareja; nidifica en juncales flotantes.',
-   'https://example.com/img/cygnus_melancoryphus.jpg', 'https://example.com/migratory/cygnus_melancoryphus'),
+   'https://example.com/img/cygnus_melancoryphus.jpg'),
 
   (gen_random_uuid(), 'Vanellus chilensis', 'Tero', 'Mediano',
    'Ave de pastizal muy vocal; antifaz negro característico.',
    'Defiende el nido activamente; común en praderas y parques.',
-   'https://example.com/img/vanellus_chilensis.jpg', 'https://example.com/migratory/vanellus_chilensis'),
+   'https://example.com/img/vanellus_chilensis.jpg'),
 
   (gen_random_uuid(), 'Buteogallus coronatus', 'Águila coronada', 'Grande',
    'Rapaz grande de zonas áridas; penacho corto.',
    'Muy baja densidad; amenazas por pérdida de hábitat y persecución.',
-   'https://example.com/img/buteogallus_coronatus.jpg', 'https://example.com/migratory/buteogallus_coronatus'),
+   'https://example.com/img/buteogallus_coronatus.jpg'),
 
   (gen_random_uuid(), 'Cathartes aura', 'Jote cabeza colorada', 'Grande',
    'Buitre planeador de cabeza roja desnuda.',
    'Carroñero; excelente olfato; frecuente en campo abierto.',
-   'https://example.com/img/cathartes_aura.jpg', 'https://example.com/migratory/cathartes_aura'),
+   'https://example.com/img/cathartes_aura.jpg'),
 
   (gen_random_uuid(), 'Pipraeidea bonariensis', 'Frutero azul', 'Mediano',
    'Macho azul oscuro con vientre amarillo; hembra verdosa.',
    'Consume frutos y artrópodos; visita arboledas.',
-   'https://example.com/img/pipraeidea_bonariensis.jpg', 'https://example.com/migratory/pipraeidea_bonariensis'),
+   'https://example.com/img/pipraeidea_bonariensis.jpg'),
 
   (gen_random_uuid(), 'Asio clamator', 'Lechuzón orejudo', 'Grande',
    'Búho con penachos conspicuos; plumaje críptico.',
    'Crepuscular/nocturno; bordes de bosque y pastizales.',
-   'https://example.com/img/asio_clamator.jpg', 'https://example.com/migratory/asio_clamator'),
+   'https://example.com/img/asio_clamator.jpg'),
 
   (gen_random_uuid(), 'Thraupis sayaca', 'Celestino', 'Mediano',
    'Tangara celeste-grisácea; común en el NE de Sudamérica.',
    'Frugívoro; frecuenta jardines y arboledas.',
-   'https://example.com/img/thraupis_sayaca.jpg', 'https://example.com/migratory/thraupis_sayaca')
+   'https://example.com/img/thraupis_sayaca.jpg')
 ON CONFLICT (name) DO NOTHING;
 
 -- ====== ASOCIACIONES: BIRD -> RARITY ======
@@ -364,62 +427,86 @@ SELECT b.bird_id, c.color_id FROM birds b, colors c
 WHERE b.name = 'Thraupis sayaca' AND c.name IN ('Celeste','Gris')
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+-- ====== SEED: SIGHTINGS ======
+INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
 SELECT gen_random_uuid(), 'Plaza San Martín, Buenos Aires', NOW() - interval '10 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Furnarius rufus'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
 SELECT gen_random_uuid(), 'Reserva Ecológica Costanera Sur', NOW() - interval '7 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'maria@example.com' AND b.name = 'Phoenicopterus chilensis'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
 SELECT gen_random_uuid(), 'Laguna de Chascomús', NOW() - interval '5 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'juan@example.com' AND b.name = 'Cygnus melancoryphus'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
 SELECT gen_random_uuid(), 'Parque General San Martín, Mendoza', NOW() - interval '3 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'sofia@example.com' AND b.name = 'Vanellus chilensis'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
 SELECT gen_random_uuid(), 'Estancia El Destino, Magdalena', NOW() - interval '1 day',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'martin@example.com' AND b.name = 'Buteogallus coronatus'
 ON CONFLICT DO NOTHING;
 
--- Otro par de avistajes repetidos para el mismo usuario
-INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+-- Otros avistajes
+INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
 SELECT gen_random_uuid(), 'Jardín Botánico, Buenos Aires', NOW() - interval '2 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, datetime, user_id, bird_id)
+INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
 SELECT gen_random_uuid(), 'Plaza de Mayo, Buenos Aires', NOW(),
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris'
 ON CONFLICT DO NOTHING;
 
-
+-- Completa rarezas faltantes por defecto = 'Común'
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id
 FROM birds b
 JOIN rarities r ON r.name = 'Común'
 LEFT JOIN bird_rarity br ON br.bird_id = b.bird_id
 WHERE br.bird_id IS NULL
+ON CONFLICT DO NOTHING;
+
+-- ====== SEED: MIGRATORY WAVES (EJEMPLOS) ======
+-- Ejemplo: Paroaria coronata -> Marzo: Buenos Aires; Abril: Jujuy; Mayo: Río Negro
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Paroaria coronata'),
+     p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires'),
+     p_ju AS (SELECT province_id FROM provinces WHERE name = 'Jujuy'),
+     p_rn AS (SELECT province_id FROM provinces WHERE name = 'Río Negro')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 3, p_ba.province_id FROM bird b, p_ba
+UNION ALL
+SELECT b.bird_id, 4, p_ju.province_id FROM bird b, p_ju
+UNION ALL
+SELECT b.bird_id, 5, p_rn.province_id FROM bird b, p_rn
+ON CONFLICT DO NOTHING;
+
+-- Ejemplo: Ramphastos toco -> Marzo: Misiones y Corrientes
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Ramphastos toco'),
+     p_mi AS (SELECT province_id FROM provinces WHERE name = 'Misiones'),
+     p_co AS (SELECT province_id FROM provinces WHERE name = 'Corrientes')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 3, p_mi.province_id FROM bird b, p_mi
+UNION ALL
+SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
 ON CONFLICT DO NOTHING;
