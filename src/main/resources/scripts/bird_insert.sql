@@ -15,10 +15,8 @@ CREATE TABLE IF NOT EXISTS birds (
     description TEXT NOT NULL,
     characteristics TEXT NOT NULL,
     image TEXT NOT NULL
-    -- migratory_wave_url ELIMINADA
 );
 
--- En caso de que la DB ya exista con migratory_wave_url, la quitamos:
 DO $$
 BEGIN
     IF EXISTS (
@@ -39,18 +37,23 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- ====== TABLA SIGHTINGS ======
--- Nota: la columna se llama dateTime (camelCase). Alineá tu @Column(name="dateTime") en JPA.
-CREATE TABLE IF NOT EXISTS sightings (
+CREATE TABLE sightings (
     sighting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    location TEXT NOT NULL,
-    "dateTime" TIMESTAMP NOT NULL,
-    user_id UUID NOT NULL,
-    bird_id UUID NOT NULL,
-    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    CONSTRAINT fk_bird_s FOREIGN KEY (bird_id) REFERENCES birds(bird_id) ON DELETE CASCADE
+    latitude    NUMERIC(9,6) NOT NULL,
+    longitude   NUMERIC(9,6) NOT NULL,
+    location_text TEXT,
+    "dateTime"  TIMESTAMP NOT NULL,
+    user_id     UUID NOT NULL,
+    bird_id     UUID NOT NULL,
+    CONSTRAINT chk_sight_lat CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_sight_lon CHECK (longitude BETWEEN -180 AND 180),
+    CONSTRAINT fk_user  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_birdS FOREIGN KEY (bird_id) REFERENCES birds(bird_id) ON DELETE CASCADE
 );
 
--- Evita duplicados y habilita ON CONFLICT (name) DO NOTHING
+CREATE INDEX IF NOT EXISTS idx_sightings_lat_lon ON sightings (latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_sightings_datetime ON sightings ("dateTime");
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -125,7 +128,7 @@ CREATE TABLE IF NOT EXISTS migratory_waves (
     bird_id     UUID     NOT NULL,
     month       SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
     province_id UUID     NOT NULL,
-    -- PK compuesta permite múltiples provincias por mes para la misma ave
+
     CONSTRAINT migratory_waves_pk PRIMARY KEY (bird_id, month, province_id),
     CONSTRAINT fk_wave_bird     FOREIGN KEY (bird_id)     REFERENCES birds(bird_id)     ON DELETE CASCADE,
     CONSTRAINT fk_wave_province FOREIGN KEY (province_id) REFERENCES provinces(province_id) ON DELETE RESTRICT
@@ -428,57 +431,62 @@ WHERE b.name = 'Thraupis sayaca' AND c.name IN ('Celeste','Gris')
 ON CONFLICT DO NOTHING;
 
 -- ====== SEED: SIGHTINGS ======
-INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
-SELECT gen_random_uuid(), 'Plaza San Martín, Buenos Aires', NOW() - interval '10 days',
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+SELECT gen_random_uuid(), -34.594900, -58.375700, 'Plaza San Martín, Buenos Aires (CABA)', NOW() - interval '10 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Furnarius rufus'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
-SELECT gen_random_uuid(), 'Reserva Ecológica Costanera Sur', NOW() - interval '7 days',
+
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+SELECT gen_random_uuid(), -34.617000, -58.360000, 'Reserva Ecológica Costanera Sur, CABA', NOW() - interval '7 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'maria@example.com' AND b.name = 'Phoenicopterus chilensis'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
-SELECT gen_random_uuid(), 'Laguna de Chascomús', NOW() - interval '5 days',
+
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+SELECT gen_random_uuid(), -35.577000, -58.016000, 'Laguna de Chascomús, Buenos Aires', NOW() - interval '5 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'juan@example.com' AND b.name = 'Cygnus melancoryphus'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
-SELECT gen_random_uuid(), 'Parque General San Martín, Mendoza', NOW() - interval '3 days',
+
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+SELECT gen_random_uuid(), -32.890000, -68.865000, 'Parque General San Martín, Mendoza', NOW() - interval '3 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'sofia@example.com' AND b.name = 'Vanellus chilensis'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
-SELECT gen_random_uuid(), 'Estancia El Destino, Magdalena', NOW() - interval '1 day',
+
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+SELECT gen_random_uuid(), -35.240000, -57.329000, 'Reserva El Destino, Magdalena (Bs As)', NOW() - interval '1 day',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'martin@example.com' AND b.name = 'Buteogallus coronatus'
 ON CONFLICT DO NOTHING;
 
--- Otros avistajes
-INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
-SELECT gen_random_uuid(), 'Jardín Botánico, Buenos Aires', NOW() - interval '2 days',
+
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+SELECT gen_random_uuid(), -34.587300, -58.416500, 'Jardín Botánico Carlos Thays, CABA', NOW() - interval '2 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, location, "dateTime", user_id, bird_id)
-SELECT gen_random_uuid(), 'Plaza de Mayo, Buenos Aires', NOW(),
+
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+SELECT gen_random_uuid(), -34.608000, -58.371000, 'Plaza de Mayo, CABA', NOW(),
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris'
 ON CONFLICT DO NOTHING;
 
--- Completa rarezas faltantes por defecto = 'Común'
+
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id
 FROM birds b
@@ -488,7 +496,7 @@ WHERE br.bird_id IS NULL
 ON CONFLICT DO NOTHING;
 
 -- ====== SEED: MIGRATORY WAVES (EJEMPLOS) ======
--- Ejemplo: Paroaria coronata -> Marzo: Buenos Aires; Abril: Jujuy; Mayo: Río Negro
+
 WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Paroaria coronata'),
      p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires'),
      p_ju AS (SELECT province_id FROM provinces WHERE name = 'Jujuy'),
@@ -501,7 +509,7 @@ UNION ALL
 SELECT b.bird_id, 5, p_rn.province_id FROM bird b, p_rn
 ON CONFLICT DO NOTHING;
 
--- Ejemplo: Ramphastos toco -> Marzo: Misiones y Corrientes
+
 WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Ramphastos toco'),
      p_mi AS (SELECT province_id FROM provinces WHERE name = 'Misiones'),
      p_co AS (SELECT province_id FROM provinces WHERE name = 'Corrientes')
@@ -510,3 +518,5 @@ SELECT b.bird_id, 3, p_mi.province_id FROM bird b, p_mi
 UNION ALL
 SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
 ON CONFLICT DO NOTHING;
+
+ALTER TABLE sightings RENAME COLUMN "dateTime" TO date_time;

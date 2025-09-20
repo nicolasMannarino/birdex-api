@@ -1,10 +1,12 @@
 package com.birdex.dto;
 
+
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +27,7 @@ public class SightingFullResponse {
     @Schema(description = "Rareza (p. ej. Comun, Poco comun, Raro, Epico, Legendario)", example = "Comun")
     private String rarity;
 
-    @Schema(description = "Ubicación", example = "Parque Saavedra, CABA")
+    @Schema(description = "Ubicación (texto o 'lat,lon (texto)')", example = "-34.587300,-58.416500 (Jardín Botánico Carlos Thays, CABA)")
     private String location;
 
     @Schema(description = "Fecha/hora", example = "2025-09-06T17:07:45")
@@ -39,4 +41,10 @@ public class SightingFullResponse {
 
     @ArraySchema(arraySchema = @Schema(description = "Imágenes del avistaje (base64)"))
     private List<String> imagesBase64;
+
+    @Schema(description = "Latitud", example = "-34.587300")
+    private BigDecimal latitude;
+
+    @Schema(description = "Longitud", example = "-58.416500")
+    private BigDecimal longitude;
 }

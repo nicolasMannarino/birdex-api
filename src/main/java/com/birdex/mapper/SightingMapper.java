@@ -5,6 +5,7 @@ import com.birdex.entity.BirdEntity;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -12,7 +13,8 @@ import java.util.Optional;
 
 public final class SightingMapper {
 
-    private SightingMapper() {}
+    private SightingMapper() {
+    }
 
     public static SightingDto toDto(SightingEntity s) {
         if (s == null) return null;
@@ -20,12 +22,16 @@ public final class SightingMapper {
         BirdEntity b = s.getBird();
         UserEntity u = s.getUser();
 
+        String location = formatLocation(s.getLatitude(), s.getLongitude(), s.getLocationText());
+
         return new SightingDto(
-                s.getLocation(),
+                location,
                 s.getDateTime(),
                 b != null ? b.getName() : null,
                 b != null ? b.getCommonName() : null,
-                u != null ? u.getEmail() : null
+                u != null ? u.getEmail() : null,
+                s.getLatitude(),
+                s.getLongitude()
         );
     }
 
@@ -39,5 +45,14 @@ public final class SightingMapper {
 
     public static Optional<SightingDto> toDto(Optional<SightingEntity> entityOpt) {
         return entityOpt.map(SightingMapper::toDto);
+    }
+
+    private static String formatLocation(BigDecimal lat, BigDecimal lon, String locationText) {
+        if (lat == null || lon == null) return null;
+        String latLon = lat.stripTrailingZeros().toPlainString() + "," + lon.stripTrailingZeros().toPlainString();
+        if (locationText != null && !locationText.isBlank()) {
+            return latLon + " (" + locationText.trim() + ")";
+        }
+        return latLon;
     }
 }

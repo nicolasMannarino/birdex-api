@@ -5,9 +5,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data @Builder
+@Data
+@Builder
 @Schema(name = "SightingRequest", description = "Payload para registrar un avistaje")
 public class SightingRequest {
 
@@ -20,7 +22,18 @@ public class SightingRequest {
     @Schema(description = "Nombre científico del ave", example = "Turdus rufiventris")
     private String birdName;
 
-    @Schema(description = "Ubicación libre", example = "Parque Saavedra, CABA")
+    @Schema(description = "Latitud en grados decimales (-90..90)", example = "-34.603722")
+    private BigDecimal latitude;
+
+    @Schema(description = "Longitud en grados decimales (-180..180)", example = "-58.381592")
+    private BigDecimal longitude;
+
+    @Schema(description = "Descripción opcional del lugar (texto libre)", example = "Parque Saavedra, CABA")
+    private String locationText;
+
+    @Schema(description = "Ubicación libre o \"lat,lon\". DEPRECATED: preferir latitude/longitude",
+            example = "-34.603722,-58.381592 (Obelisco, CABA)",
+            deprecated = true)
     private String location;
 
     @Schema(description = "Fecha/hora local del evento", example = "2025-09-06T17:07:45")

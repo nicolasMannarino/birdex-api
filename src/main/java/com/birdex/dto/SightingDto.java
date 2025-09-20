@@ -1,5 +1,6 @@
 package com.birdex.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record SightingDto(
@@ -7,5 +8,8 @@ public record SightingDto(
         LocalDateTime dateTime,
         String birdName,
         String birdCommonName,
-        String userEmail
-) {}
+        String userEmail,
+        BigDecimal latitude,
+        BigDecimal longitude
+) {
+}

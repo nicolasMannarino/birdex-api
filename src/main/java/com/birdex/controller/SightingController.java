@@ -7,11 +7,11 @@ import com.birdex.service.SightingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.*;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,34 +24,60 @@ public class SightingController {
 
     private final SightingService sightingService;
 
-    @PostMapping
+
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(
             summary = "Registrar un avistaje",
             description = "Recibe la imagen base64, datos del ave y ubicación. Devuelve 204 No Content."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Registrado"),
-            @ApiResponse(responseCode = "400", description = "Request inválido",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "500", description = "Error interno",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Request inválido",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Error interno",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
     })
     public ResponseEntity<Void> registerSighting(
-            @RequestBody(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
-                    description = "Datos del avistaje",
+                    description = "Datos del avistaje. Podés enviar lat/lon o solo `locationText`.",
                     content = @Content(
-                            mediaType = "application/json",
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = SightingRequest.class),
-                            examples = @ExampleObject(value = """
-                  {
-                    "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
-                    "email": "user@example.com",
-                    "birdName": "Turdus rufiventris",
-                    "location": "Parque Saavedra, CABA",
-                    "dateTime": "2025-09-06T17:07:45"
-                  }
-                """)
+                            examples = {
+                                    @ExampleObject(
+                                            name = "Con lat/lon",
+                                            value = """
+                                        {
+                                          "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
+                                          "email": "user@example.com",
+                                          "birdName": "Turdus rufiventris",
+                                          "dateTime": "2025-09-06T17:07:45",
+                                          "latitude": -34.603722,
+                                          "longitude": -58.381592,
+                                          "locationText": "Parque Saavedra, CABA"
+                                        }
+                                        """
+                                    ),
+                                    @ExampleObject(
+                                            name = "Solo locationText (sin lat/lon)",
+                                            value = """
+                                        {
+                                          "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
+                                          "email": "user@example.com",
+                                          "birdName": "Turdus rufiventris",
+                                          "dateTime": "2025-09-06T17:07:45",
+                                          "locationText": "Parque Saavedra, CABA"
+                                        }
+                                        """
+                                    )
+                            }
                     )
             )
             @org.springframework.web.bind.annotation.RequestBody SightingRequest request
