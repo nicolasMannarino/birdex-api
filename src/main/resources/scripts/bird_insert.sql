@@ -96,6 +96,96 @@ CREATE TABLE IF NOT EXISTS provinces (
     name        TEXT NOT NULL UNIQUE
 );
 
+CREATE TABLE IF NOT EXISTS missions (
+    mission_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    type TEXT NOT NULL, -- daily, weekly, unique
+    objective JSONB NOT NULL, -- flexible: {"sightings": 5}, {"species": 3}, {"rarity": "Raro"}
+    reward_points INT DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS user_missions (
+    user_mission_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    mission_id UUID NOT NULL REFERENCES missions(mission_id) ON DELETE CASCADE,
+    progress JSONB DEFAULT '{}'::jsonb,
+    completed BOOLEAN DEFAULT FALSE,
+    completed_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS achievements (
+    achievement_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    criteria JSONB NOT NULL, -- {"total_sightings":100}, {"rarity":"Legendario"}
+    icon_url TEXT
+);
+
+CREATE TABLE IF NOT EXISTS user_achievements (
+    user_achievement_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    achievement_id UUID NOT NULL REFERENCES achievements(achievement_id) ON DELETE CASCADE,
+    obtained_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS rarity_points (
+    rarity_id UUID PRIMARY KEY REFERENCES rarities(rarity_id) ON DELETE CASCADE,
+    points INT NOT NULL
+);
+
+ALTER TABLE users ADD COLUMN points INT DEFAULT 0;
+ALTER TABLE users ADD COLUMN level INT DEFAULT 1;
+
+CREATE TABLE IF NOT EXISTS levels (
+    level INT PRIMARY KEY,
+    name TEXT NOT NULL,
+    xp_required INT NOT NULL
+);
+
+INSERT INTO levels (level, name, xp_required) VALUES
+(1, 'Novato', 0),
+(2, 'Aprendiz', 50),
+(3, 'Aventurero', 150),
+(4, 'Explorador', 300),
+(5, 'Ornitólogo', 500),
+(6, 'Maestro Ornitólogo', 800),
+(7, 'Legendario', 1200)
+ON CONFLICT (level) DO NOTHING;
+
+ALTER TABLE users ADD COLUMN level_name TEXT DEFAULT 'Novato';
+
+INSERT INTO missions (name, description, type, objective, reward_points)
+VALUES
+('Primer Avistamiento del dia', 'Registra tu primer avistamiento del dia', 'daily', '{"sightings":1}', 10),
+('Explorador Común', 'Registra 5 aves comunes', 'daily', '{"rarity":"Común","count":5}', 20),
+('Cazador de Raros', 'Encuentra 1 ave rara', 'unique', '{"rarity":"Raro","count":1}', 50)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO achievements (name, description, criteria, icon_url)
+VALUES
+('Novato', 'Completa tu primer avistamiento', '{"sightings":1}', '/icons/novato.png'),
+('Ornitólogo', 'Registra 50 especies diferentes', '{"unique_species":50}', '/icons/ornitologo.png'),
+('Legendario', 'Avista un ave de rareza Legendaria', '{"rarity":"Legendario"}', '/icons/legendario.png'),
+('Naturalista', 'Registrá 10 especies diferentes', '{"unique_species":10}', '/icons/naturalista.png'),
+('Épico', 'Avistá un ave de rareza Épico', '{"rarity":"Épico"}', '/icons/epico.png'),
+('Maestro de Raros', 'Registrá 5 avistamientos de aves raras', '{"rarity":"Raro","count":5}', '/icons/maestro_raros.png'),
+('Madrugador', 'Hacé tu primer avistaje del día antes de las 08:00', '{"first_of_day_before_hour":8}', '/icons/madrugador.png'),
+('Coleccionista', 'Registrá 100 avistamientos en total', '{"total_sightings":100}', '/icons/coleccionista.png')
+ON CONFLICT DO NOTHING;
+
+
+INSERT INTO rarity_points (rarity_id, points)
+SELECT r.rarity_id, CASE r.name
+    WHEN 'Común' THEN 5
+    WHEN 'Poco común' THEN 10
+    WHEN 'Raro' THEN 20
+    WHEN 'Épico' THEN 40
+    WHEN 'Legendario' THEN 80
+END
+FROM rarities r
+ON CONFLICT (rarity_id) DO NOTHING;
+
 INSERT INTO provinces (name) VALUES
   ('Buenos Aires'),
   ('Ciudad Autónoma de Buenos Aires'),

@@ -1,21 +1,16 @@
 package com.birdex.entity;
 
-import java.util.ArrayList;
+import jakarta.persistence.*;
+import lombok.*;
+
 import java.util.UUID;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import lombok.Data;
-
 @Entity
-@Data
-@Table(name = "users")
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
+@Builder
+@Table(name = "users",
+        uniqueConstraints = @UniqueConstraint(columnNames = "email"))
 public class UserEntity {
 
     @Id
@@ -31,4 +26,16 @@ public class UserEntity {
 
     @Column(name = "email", nullable = false, unique = true)
     private String email;
+
+    @Column(name = "points", nullable = false)
+    @Builder.Default
+    private Integer points = 0;
+
+    @Column(name = "level", nullable = false)
+    @Builder.Default
+    private Integer level = 1;
+
+    @Column(name = "level_name", nullable = false)
+    @Builder.Default
+    private String levelName = "Novato";
 }
