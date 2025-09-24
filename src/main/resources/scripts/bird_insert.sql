@@ -137,6 +137,18 @@ CREATE TABLE IF NOT EXISTS rarity_points (
 ALTER TABLE users ADD COLUMN points INT DEFAULT 0;
 ALTER TABLE users ADD COLUMN level INT DEFAULT 1;
 
+ALTER TABLE birds
+    ADD COLUMN IF NOT EXISTS length TEXT,
+    ADD COLUMN IF NOT EXISTS weight TEXT;
+
+UPDATE birds
+SET length = '23–25 cm', weight = '60–70 g'
+WHERE name = 'Turdus rufiventris';
+
+UPDATE birds
+SET length = '17–19 cm', weight = '30 g'
+WHERE name = 'Paroaria coronata';
+
 CREATE TABLE IF NOT EXISTS levels (
     level INT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -266,88 +278,89 @@ INSERT INTO users (user_id, username, password, email) VALUES
 ON CONFLICT (email) DO NOTHING;
 
 -- ====== SEED: AVES ======
-INSERT INTO birds (bird_id, name, common_name, size, description, characteristics, image) VALUES
-  (gen_random_uuid(), 'Furnarius rufus', 'Hornero', 'Mediano',
+-- ====== SEED: AVES (con length/weight) ======
+INSERT INTO birds (bird_id, name, common_name, size, length, weight, description, characteristics, image) VALUES
+  (gen_random_uuid(), 'Furnarius rufus', 'Hornero', 'Mediano', '18–20 cm', '45–56 g',
    'Ave emblemática que construye nidos de barro con forma de horno.',
    'Nido de barro; territorial; frecuente en ciudades y áreas rurales.',
    'https://example.com/img/furnarius_rufus.jpg'),
 
-  (gen_random_uuid(), 'Gubernatrix cristata', 'Cardenal amarillo', 'Mediano',
+  (gen_random_uuid(), 'Gubernatrix cristata', 'Cardenal amarillo', 'Mediano', '20–23 cm', '40–65 g',
    'Passeriforme amarillo con máscara negra y cresta conspicua.',
    'Canto potente; matorrales y bosques abiertos; muy presionado por captura.',
    'https://example.com/img/gubernatrix_cristata.jpg'),
 
-  (gen_random_uuid(), 'Paroaria coronata', 'Cardenal común', 'Mediano',
+  (gen_random_uuid(), 'Paroaria coronata', 'Cardenal común', 'Mediano', '18–20 cm', '35–45 g',
    'Cresta roja, dorso gris, partes inferiores blancas.',
    'Común en parques y jardines; gregario; omnívoro.',
    'https://example.com/img/paroaria_coronata.jpg'),
 
-  (gen_random_uuid(), 'Chauna torquata', 'Chajá', 'Grande',
+  (gen_random_uuid(), 'Chauna torquata', 'Chajá', 'Grande', '80–95 cm', '3–5 kg',
    'Ave grande de humedales con potente vocalización y espolones alares.',
    'Parejas estables; vuela bien; frecuente en lagunas.',
    'https://example.com/img/chauna_torquata.jpg'),
 
-  (gen_random_uuid(), 'Rhea americana', 'Ñandú grande', 'Muy grande',
+  (gen_random_uuid(), 'Rhea americana', 'Ñandú grande', 'Muy grande', '130–170 cm', '20–40 kg',
    'Ratite corredora de pastizales abiertos.',
    'Gregario; gran corredor; nidos comunales.',
    'https://example.com/img/rhea_americana.jpg'),
 
-  (gen_random_uuid(), 'Rhea pennata', 'Ñandú petiso', 'Muy grande',
+  (gen_random_uuid(), 'Rhea pennata', 'Ñandú petiso', 'Muy grande', '90–100 cm', '15–28 kg',
    'Ratite patagónica, más pequeño y críptico que R. americana.',
    'Adaptado a ambientes fríos y ventosos; baja densidad.',
    'https://example.com/img/rhea_pennata.jpg'),
 
-  (gen_random_uuid(), 'Phoenicopterus chilensis', 'Flamenco austral', 'Grande',
+  (gen_random_uuid(), 'Phoenicopterus chilensis', 'Flamenco austral', 'Grande', '100–120 cm', '2–4 kg',
    'Flamenco rosado pálido; filtra alimento en aguas someras.',
    'Colonial; movimientos locales amplios; sensible a disturbios.',
    'https://example.com/img/phoenicopterus_chilensis.jpg'),
 
-  (gen_random_uuid(), 'Ramphastos toco', 'Tucán toco', 'Grande',
+  (gen_random_uuid(), 'Ramphastos toco', 'Tucán toco', 'Grande', '55–65 cm', '500–860 g',
    'Mayor de los tucanes, con gran pico anaranjado.',
    'Principalmente frugívoro; conspicuo; usa cavidades para nidificar.',
    'https://example.com/img/ramphastos_toco.jpg'),
 
-  (gen_random_uuid(), 'Turdus rufiventris', 'Zorzal colorado', 'Mediano',
+  (gen_random_uuid(), 'Turdus rufiventris', 'Zorzal colorado', 'Mediano', '23–25 cm', '60–75 g',
    'Zorzal de vientre rufo y dorso pardo; canto melodioso.',
    'Común en jardines; dieta variada; anida en arbustos.',
    'https://example.com/img/turdus_rufiventris.jpg'),
 
-  (gen_random_uuid(), 'Cyanocompsa brissonii', 'Reinamora grande', 'Mediano',
+  (gen_random_uuid(), 'Cyanocompsa brissonii', 'Reinamora grande', 'Mediano', '16–19 cm', '25–40 g',
    'Macho azul intenso con tonos negros; robusto.',
    'Consume semillas y frutos; discreto en matorrales.',
    'https://example.com/img/cyanocompsa_brissonii.jpg'),
 
-  (gen_random_uuid(), 'Cygnus melancoryphus', 'Cisne de cuello negro', 'Grande',
+  (gen_random_uuid(), 'Cygnus melancoryphus', 'Cisne de cuello negro', 'Grande', '102–124 cm', '3–6 kg',
    'Cuerpo blanco y cuello negro; lagunas y estuarios.',
    'Fidelidad de pareja; nidifica en juncales flotantes.',
    'https://example.com/img/cygnus_melancoryphus.jpg'),
 
-  (gen_random_uuid(), 'Vanellus chilensis', 'Tero', 'Mediano',
+  (gen_random_uuid(), 'Vanellus chilensis', 'Tero', 'Mediano', '32–38 cm', '190–400 g',
    'Ave de pastizal muy vocal; antifaz negro característico.',
    'Defiende el nido activamente; común en praderas y parques.',
    'https://example.com/img/vanellus_chilensis.jpg'),
 
-  (gen_random_uuid(), 'Buteogallus coronatus', 'Águila coronada', 'Grande',
+  (gen_random_uuid(), 'Buteogallus coronatus', 'Águila coronada', 'Grande', '73–85 cm', '2.3–3.0 kg',
    'Rapaz grande de zonas áridas; penacho corto.',
    'Muy baja densidad; amenazas por pérdida de hábitat y persecución.',
    'https://example.com/img/buteogallus_coronatus.jpg'),
 
-  (gen_random_uuid(), 'Cathartes aura', 'Jote cabeza colorada', 'Grande',
+  (gen_random_uuid(), 'Cathartes aura', 'Jote cabeza colorada', 'Grande', '64–81 cm', '0.8–2.4 kg',
    'Buitre planeador de cabeza roja desnuda.',
    'Carroñero; excelente olfato; frecuente en campo abierto.',
    'https://example.com/img/cathartes_aura.jpg'),
 
-  (gen_random_uuid(), 'Pipraeidea bonariensis', 'Frutero azul', 'Mediano',
+  (gen_random_uuid(), 'Pipraeidea bonariensis', 'Frutero azul', 'Mediano', '14–16 cm', '20–35 g',
    'Macho azul oscuro con vientre amarillo; hembra verdosa.',
    'Consume frutos y artrópodos; visita arboledas.',
    'https://example.com/img/pipraeidea_bonariensis.jpg'),
 
-  (gen_random_uuid(), 'Asio clamator', 'Lechuzón orejudo', 'Grande',
+  (gen_random_uuid(), 'Asio clamator', 'Lechuzón orejudo', 'Grande', '30–38 cm', '320–700 g',
    'Búho con penachos conspicuos; plumaje críptico.',
    'Crepuscular/nocturno; bordes de bosque y pastizales.',
    'https://example.com/img/asio_clamator.jpg'),
 
-  (gen_random_uuid(), 'Thraupis sayaca', 'Celestino', 'Mediano',
+  (gen_random_uuid(), 'Thraupis sayaca', 'Celestino', 'Mediano', '16–18 cm', '25–40 g',
    'Tangara celeste-grisácea; común en el NE de Sudamérica.',
    'Frugívoro; frecuenta jardines y arboledas.',
    'https://example.com/img/thraupis_sayaca.jpg')

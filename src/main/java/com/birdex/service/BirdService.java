@@ -7,6 +7,7 @@ import com.birdex.entity.BirdEntity;
 import com.birdex.entity.BirdNamesView;
 import com.birdex.entity.BirdSummary;
 import com.birdex.mapper.BirdMapper;
+import com.birdex.repository.BirdColorRepository;
 import com.birdex.repository.BirdRarityRepository;
 import com.birdex.repository.BirdRepository;
 import com.birdex.utils.Slugs;
@@ -28,6 +29,7 @@ public class BirdService {
     private final BirdMapper birdMapper;
     private final BucketService bucketService;
     private final BirdRarityRepository birdRarityRepository;
+    private final BirdColorRepository birdColorRepository;
 
 
     public String getDescription(String commonName) {
@@ -45,8 +47,12 @@ public class BirdService {
 
         BirdDto dto = birdMapper.toDto(entity);
         String image = bucketService.getBirdProfileBase64(dto.getName());
-
         dto.setImage(image);
+
+        String rarity = birdRarityRepository.findRarityNameByBirdName(entity.getName()).orElse("");
+        dto.setRarity(rarity);
+
+        dto.setColors(birdColorRepository.findColorNamesByBirdName(entity.getName()));
 
         return dto;
     }

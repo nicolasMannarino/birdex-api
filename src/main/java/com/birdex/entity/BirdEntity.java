@@ -34,6 +34,12 @@ public class BirdEntity {
     @Column(name = "size", nullable = false)
     private String size;
 
+    @Column(name = "length")
+    private String length;
+
+    @Column(name = "weight")
+    private String weight;
+
     @Column(name = "description", nullable = false)
     private String description;
 

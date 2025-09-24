@@ -1,5 +1,6 @@
 package com.birdex.mapper;
 
+
 import com.birdex.dto.BirdDto;
 import com.birdex.entity.BirdEntity;
 import com.birdex.entity.MigratoryWaveEntity;
@@ -21,6 +22,14 @@ public class BirdMapper {
         dto.setDescription(entity.getDescription());
         dto.setCharacteristics(entity.getCharacteristics());
         dto.setImage(entity.getImage());
+
+        // NEW: nested size object
+        dto.setSizeDetails(
+                BirdDto.Size.builder()
+                        .length(entity.getLength())
+                        .weight(entity.getWeight())
+                        .build()
+        );
 
         if (entity.getMigratoryWaves() != null && !entity.getMigratoryWaves().isEmpty()) {
             Map<Short, List<String>> wave = entity.getMigratoryWaves().stream()
@@ -50,6 +59,11 @@ public class BirdMapper {
         entity.setName(dto.getName());
         entity.setCommonName(dto.getCommonName());
         entity.setSize(dto.getSize());
+
+        if (dto.getSizeDetails() != null) {
+            entity.setLength(dto.getSizeDetails().getLength());
+            entity.setWeight(dto.getSizeDetails().getWeight());
+        }
         entity.setDescription(dto.getDescription());
         entity.setCharacteristics(dto.getCharacteristics());
         entity.setImage(dto.getImage());
