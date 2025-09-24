@@ -6,6 +6,7 @@ import com.birdex.dto.BirdProgressResponse;
 import com.birdex.entity.BirdEntity;
 import com.birdex.entity.BirdNamesView;
 import com.birdex.entity.BirdSummary;
+import com.birdex.entity.BirdSummaryEnriched;
 import com.birdex.mapper.BirdMapper;
 import com.birdex.repository.BirdColorRepository;
 import com.birdex.repository.BirdRarityRepository;
@@ -14,6 +15,7 @@ import com.birdex.utils.Slugs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -82,14 +84,7 @@ public class BirdService {
                 .build();
     }
 
-    /**
-     * Búsqueda con filtros textuales y numéricos opcionales.
-     * La semántica para numéricos es intersección de rangos:
-     * - lengthMinMm  -> b.length_max_mm >= lengthMinMm
-     * - lengthMaxMm  -> b.length_min_mm <= lengthMaxMm
-     * - weightMinG   -> b.weight_max_g  >= weightMinG
-     * - weightMaxG   -> b.weight_min_g  <= weightMaxG
-     */
+
     public Page<BirdSummary> search(
             String rarity,
             String color,
@@ -116,7 +111,19 @@ public class BirdService {
             int tmp = wMin; wMin = wMax; wMax = tmp;
         }
 
-        return birdRepository.searchBirds(r, c, s, lenMin, lenMax, wMin, wMax, pageable);
+        Page<BirdSummary> page = birdRepository.searchBirds(r, c, s, lenMin, lenMax, wMin, wMax, pageable);
+
+        List<BirdSummary> enriched = page.getContent().stream()
+                .map(it -> {
+
+                    String dataUri = bucketService.getBirdProfileDataUri(it.getName());
+
+                    return new BirdSummaryEnriched(it, dataUri);
+                })
+                .map(BirdSummary.class::cast)
+                .toList();
+
+        return new PageImpl<>(enriched, pageable, page.getTotalElements());
     }
 
     private String normalize(String v) {
