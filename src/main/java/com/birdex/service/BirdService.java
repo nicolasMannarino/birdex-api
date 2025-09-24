@@ -43,7 +43,12 @@ public class BirdService {
             return new RuntimeException("Bird not found for name: " + specificName);
         });
 
-        return birdMapper.toDto(entity);
+        BirdDto dto = birdMapper.toDto(entity);
+        String image = bucketService.getBirdProfileBase64(dto.getName());
+
+        dto.setImage(image);
+
+        return dto;
     }
 
     public BirdProgressResponse getBirds() {

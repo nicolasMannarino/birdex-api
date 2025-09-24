@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 @Data @NoArgsConstructor @AllArgsConstructor
+@Builder
 @Schema(name = "Bird", description = "Detalle de ave")
 public class BirdDto {
     @Schema(description = "Nombre científico", example = "Turdus rufiventris")
@@ -26,7 +27,11 @@ public class BirdDto {
     @Schema(description = "Características", example = "Canto melodioso; pecho rojizo...")
     private String characteristics;
 
-    @Schema(description = "URL de imagen", example = "https://cdn.birdex.com/img/zorzal.jpg")
+    @Schema(
+            description = "Imagen en base64 (cadena codificada).",
+            type = "string",
+            example = "iVBORw0KGgoAAAANSUhEUgAA... (base64 recortado)"
+    )
     private String image;
 
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
