@@ -108,7 +108,11 @@ public class BirdController {
     @GetMapping
     @Operation(
             summary = "Buscar aves (paginado)",
-            description = "Filtra por rareza, color y tamaño. Orden configurable con `sort=campo,asc|desc`."
+            description = """
+            Filtra por rareza, color, tamaño y por rangos de longitud/peso.
+            Los parámetros numéricos son opcionales y pueden pasarse en cualquier combinación.
+            Orden configurable con `sort=campo,asc|desc`.
+        """
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Resultados paginados (Page<BirdSummary>)"),
@@ -118,12 +122,22 @@ public class BirdController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public Page<BirdSummary> searchBirds(
-            @Parameter(description = "Rareza (p. ej. Comun, Poco comun, Raro, Epico, Legendario)", example = "Comun")
+            @Parameter(description = "Rareza (p. ej. Común, Poco común, Raro, Épico, Legendario)", example = "Común")
             @RequestParam(required = false) String rarity,
             @Parameter(description = "Color dominante", example = "amarillo")
             @RequestParam(required = false) String color,
             @Schema(description = "Tamaño (Grande, Muy grande, Mediano, Pequeño)", example = "Grande")
             @RequestParam(required = false) String size,
+
+            @Parameter(description = "Longitud mínima (mm)", example = "180")
+            @RequestParam(required = false) Integer lengthMinMm,
+            @Parameter(description = "Longitud máxima (mm)", example = "200")
+            @RequestParam(required = false) Integer lengthMaxMm,
+            @Parameter(description = "Peso mínimo (g)", example = "40")
+            @RequestParam(required = false) Integer weightMinG,
+            @Parameter(description = "Peso máximo (g)", example = "65")
+            @RequestParam(required = false) Integer weightMaxG,
+
             @Parameter(description = "Número de página (base 0)", example = "0")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Tamaño de página", example = "20")
@@ -133,15 +147,33 @@ public class BirdController {
     ) {
         Sort sortObj = parseSort(sort);
         Pageable pageable = PageRequest.of(page, sizePage, sortObj);
-        return birdService.search(rarity, color, size, pageable);
+
+        Integer lenMin = cleanPositive(lengthMinMm);
+        Integer lenMax = cleanPositive(lengthMaxMm);
+        if (lenMin != null && lenMax != null && lenMin > lenMax) {
+            int tmp = lenMin; lenMin = lenMax; lenMax = tmp;
+        }
+
+        Integer wMin = cleanPositive(weightMinG);
+        Integer wMax = cleanPositive(weightMaxG);
+        if (wMin != null && wMax != null && wMin > wMax) {
+            int tmp = wMin; wMin = wMax; wMax = tmp;
+        }
+
+        return birdService.search(rarity, color, size, lenMin, lenMax, wMin, wMax, pageable);
     }
 
     private Sort parseSort(String sort) {
+        if (sort == null || sort.isBlank()) return Sort.by(Sort.Direction.ASC, "name");
         String[] parts = sort.split(",", 2);
-        String field = parts[0].trim();
+        String field = parts[0].isBlank() ? "name" : parts[0].trim();
         Sort.Direction dir = (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim()))
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
         return Sort.by(dir, field);
+    }
+
+    private Integer cleanPositive(Integer v) {
+        return (v != null && v > 0) ? v : null;
     }
 }

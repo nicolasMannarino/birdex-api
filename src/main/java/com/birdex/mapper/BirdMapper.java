@@ -23,11 +23,12 @@ public class BirdMapper {
         dto.setCharacteristics(entity.getCharacteristics());
         dto.setImage(entity.getImage());
 
-        // NEW: nested size object
         dto.setSizeDetails(
-                BirdDto.Size.builder()
-                        .length(entity.getLength())
-                        .weight(entity.getWeight())
+                BirdDto.Measurements.builder()
+                        .lengthMinMm(entity.getLengthMinMm())
+                        .lengthMaxMm(entity.getLengthMaxMm())
+                        .weightMinG(entity.getWeightMinG())
+                        .weightMaxG(entity.getWeightMaxG())
                         .build()
         );
 
@@ -61,9 +62,12 @@ public class BirdMapper {
         entity.setSize(dto.getSize());
 
         if (dto.getSizeDetails() != null) {
-            entity.setLength(dto.getSizeDetails().getLength());
-            entity.setWeight(dto.getSizeDetails().getWeight());
+            entity.setLengthMinMm(dto.getSizeDetails().getLengthMinMm());
+            entity.setLengthMaxMm(dto.getSizeDetails().getLengthMaxMm());
+            entity.setWeightMinG(dto.getSizeDetails().getWeightMinG());
+            entity.setWeightMaxG(dto.getSizeDetails().getWeightMaxG());
         }
+
         entity.setDescription(dto.getDescription());
         entity.setCharacteristics(dto.getCharacteristics());
         entity.setImage(dto.getImage());

@@ -7,13 +7,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-import jakarta.persistence.*;
-import lombok.*;
-
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
-
 @Entity
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
@@ -34,11 +27,17 @@ public class BirdEntity {
     @Column(name = "size", nullable = false)
     private String size;
 
-    @Column(name = "length")
-    private String length;
+    @Column(name = "length_min_mm")
+    private Integer lengthMinMm;
 
-    @Column(name = "weight")
-    private String weight;
+    @Column(name = "length_max_mm")
+    private Integer lengthMaxMm;
+
+    @Column(name = "weight_min_g")
+    private Integer weightMinG;
+
+    @Column(name = "weight_max_g")
+    private Integer weightMaxG;
 
     @Column(name = "description", nullable = false)
     private String description;

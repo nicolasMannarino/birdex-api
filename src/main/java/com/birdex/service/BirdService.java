@@ -31,7 +31,6 @@ public class BirdService {
     private final BirdRarityRepository birdRarityRepository;
     private final BirdColorRepository birdColorRepository;
 
-
     public String getDescription(String commonName) {
         return birdRepository.findFirstByCommonNameContainingIgnoreCase(commonName).orElseThrow(() -> {
             log.warn("No bird found for common name: {}", commonName);
@@ -83,16 +82,48 @@ public class BirdService {
                 .build();
     }
 
-    public Page<BirdSummary> search(String rarity, String color, String size, Pageable pageable) {
+    /**
+     * Búsqueda con filtros textuales y numéricos opcionales.
+     * La semántica para numéricos es intersección de rangos:
+     * - lengthMinMm  -> b.length_max_mm >= lengthMinMm
+     * - lengthMaxMm  -> b.length_min_mm <= lengthMaxMm
+     * - weightMinG   -> b.weight_max_g  >= weightMinG
+     * - weightMaxG   -> b.weight_min_g  <= weightMaxG
+     */
+    public Page<BirdSummary> search(
+            String rarity,
+            String color,
+            String size,
+            Integer lengthMinMm,
+            Integer lengthMaxMm,
+            Integer weightMinG,
+            Integer weightMaxG,
+            Pageable pageable
+    ) {
         String r = normalize(rarity);
         String c = normalize(color);
         String s = normalize(size);
 
-        return birdRepository.searchBirds(r, c, s, pageable);
+        Integer lenMin = cleanPositive(lengthMinMm);
+        Integer lenMax = cleanPositive(lengthMaxMm);
+        if (lenMin != null && lenMax != null && lenMin > lenMax) {
+            int tmp = lenMin; lenMin = lenMax; lenMax = tmp;
+        }
+
+        Integer wMin = cleanPositive(weightMinG);
+        Integer wMax = cleanPositive(weightMaxG);
+        if (wMin != null && wMax != null && wMin > wMax) {
+            int tmp = wMin; wMin = wMax; wMax = tmp;
+        }
+
+        return birdRepository.searchBirds(r, c, s, lenMin, lenMax, wMin, wMax, pageable);
     }
 
     private String normalize(String v) {
         return StringUtils.hasText(v) ? v.trim() : null;
     }
 
+    private Integer cleanPositive(Integer v) {
+        return (v != null && v > 0) ? v : null;
+    }
 }

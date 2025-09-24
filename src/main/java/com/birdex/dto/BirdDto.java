@@ -50,17 +50,24 @@ public class BirdDto {
     )
     private Map<Short, List<String>> migratoryWave;
 
-
-    @Schema(name = "Size", description = "Bird size details")
-    private Size sizeDetails;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Schema(name = "Measurements", description = "Numeric length and weight ranges (mm/g)")
+    private Measurements sizeDetails;
 
     @Data @NoArgsConstructor @AllArgsConstructor @Builder
-    @Schema(name = "Size", description = "Length and weight")
-    public static class Size {
-        @Schema(description = "Length", example = "17–19 cm")
-        private String length;
+    @Schema(name = "Measurements", description = "Length (mm) and weight (g) ranges")
+    public static class Measurements {
 
-        @Schema(description = "Weight", example = "30 g (approx.)")
-        private String weight;
+        @Schema(description = "Minimum length in millimeters", example = "230")
+        private Integer lengthMinMm;
+
+        @Schema(description = "Maximum length in millimeters", example = "250")
+        private Integer lengthMaxMm;
+
+        @Schema(description = "Minimum weight in grams", example = "60")
+        private Integer weightMinG;
+
+        @Schema(description = "Maximum weight in grams", example = "75")
+        private Integer weightMaxG;
     }
 }

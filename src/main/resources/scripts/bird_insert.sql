@@ -11,17 +11,40 @@ CREATE TABLE IF NOT EXISTS birds (
     bird_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     common_name TEXT NOT NULL,
-    size TEXT NOT NULL,
+    size TEXT NOT NULL, -- categoría (Grande, Mediano, etc.)
     description TEXT NOT NULL,
     characteristics TEXT NOT NULL,
-    image TEXT NOT NULL
+    image TEXT NOT NULL,
+
+    -- Nuevo: rangos numéricos
+    length_min_mm INT,
+    length_max_mm INT,
+    weight_min_g  INT,
+    weight_max_g  INT,
+
+    -- Unicidad por nombre científico
+    CONSTRAINT birds_name_uk UNIQUE (name),
+
+    -- Integridad de rangos
+    CONSTRAINT chk_len_pos   CHECK (length_min_mm IS NULL OR length_min_mm > 0),
+    CONSTRAINT chk_len_pos2  CHECK (length_max_mm IS NULL OR length_max_mm > 0),
+    CONSTRAINT chk_len_range CHECK (
+        (length_min_mm IS NULL AND length_max_mm IS NULL) OR
+        (length_min_mm IS NOT NULL AND length_max_mm IS NOT NULL AND length_min_mm <= length_max_mm)
+    ),
+    CONSTRAINT chk_w_pos     CHECK (weight_min_g IS NULL OR weight_min_g > 0),
+    CONSTRAINT chk_w_pos2    CHECK (weight_max_g IS NULL OR weight_max_g > 0),
+    CONSTRAINT chk_w_range   CHECK (
+        (weight_min_g IS NULL AND weight_max_g IS NULL) OR
+        (weight_min_g IS NOT NULL AND weight_max_g IS NOT NULL AND weight_min_g <= weight_max_g)
+    )
 );
 
 DO $$
 BEGIN
+    -- Si existía una columna vieja 'migratory_wave_url', la removemos (compat)
     IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
+        SELECT 1 FROM information_schema.columns
         WHERE table_name = 'birds' AND column_name = 'migratory_wave_url'
     ) THEN
         EXECUTE 'ALTER TABLE birds DROP COLUMN IF EXISTS migratory_wave_url';
@@ -33,16 +56,19 @@ CREATE TABLE IF NOT EXISTS users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT NOT NULL,
     password TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE
+    email TEXT NOT NULL UNIQUE,
+    points INT DEFAULT 0,
+    level INT DEFAULT 1,
+    level_name TEXT DEFAULT 'Novato'
 );
 
 -- ====== TABLA SIGHTINGS ======
-CREATE TABLE sightings (
+CREATE TABLE IF NOT EXISTS sightings (
     sighting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     latitude    NUMERIC(9,6) NOT NULL,
     longitude   NUMERIC(9,6) NOT NULL,
     location_text TEXT,
-    "dateTime"  TIMESTAMP NOT NULL,
+    date_time  TIMESTAMP NOT NULL,
     user_id     UUID NOT NULL,
     bird_id     UUID NOT NULL,
     CONSTRAINT chk_sight_lat CHECK (latitude BETWEEN -90 AND 90),
@@ -52,17 +78,7 @@ CREATE TABLE sightings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sightings_lat_lon ON sightings (latitude, longitude);
-CREATE INDEX IF NOT EXISTS idx_sightings_datetime ON sightings ("dateTime");
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'birds_name_uk'
-    ) THEN
-        ALTER TABLE birds ADD CONSTRAINT birds_name_uk UNIQUE (name);
-    END IF;
-END $$;
+CREATE INDEX IF NOT EXISTS idx_sightings_datetime ON sightings (date_time);
 
 CREATE TABLE IF NOT EXISTS colors (
     color_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -134,21 +150,6 @@ CREATE TABLE IF NOT EXISTS rarity_points (
     points INT NOT NULL
 );
 
-ALTER TABLE users ADD COLUMN points INT DEFAULT 0;
-ALTER TABLE users ADD COLUMN level INT DEFAULT 1;
-
-ALTER TABLE birds
-    ADD COLUMN IF NOT EXISTS length TEXT,
-    ADD COLUMN IF NOT EXISTS weight TEXT;
-
-UPDATE birds
-SET length = '23–25 cm', weight = '60–70 g'
-WHERE name = 'Turdus rufiventris';
-
-UPDATE birds
-SET length = '17–19 cm', weight = '30 g'
-WHERE name = 'Paroaria coronata';
-
 CREATE TABLE IF NOT EXISTS levels (
     level INT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -164,8 +165,6 @@ INSERT INTO levels (level, name, xp_required) VALUES
 (6, 'Maestro Ornitólogo', 800),
 (7, 'Legendario', 1200)
 ON CONFLICT (level) DO NOTHING;
-
-ALTER TABLE users ADD COLUMN level_name TEXT DEFAULT 'Novato';
 
 INSERT INTO missions (name, description, type, objective, reward_points)
 VALUES
@@ -185,7 +184,6 @@ VALUES
 ('Madrugador', 'Hacé tu primer avistaje del día antes de las 08:00', '{"first_of_day_before_hour":8}', '/icons/madrugador.png'),
 ('Coleccionista', 'Registrá 100 avistamientos en total', '{"total_sightings":100}', '/icons/coleccionista.png')
 ON CONFLICT DO NOTHING;
-
 
 INSERT INTO rarity_points (rarity_id, points)
 SELECT r.rarity_id, CASE r.name
@@ -277,93 +275,93 @@ INSERT INTO users (user_id, username, password, email) VALUES
   (gen_random_uuid(), 'martin', 'pass123', 'martin@example.com')
 ON CONFLICT (email) DO NOTHING;
 
--- ====== SEED: AVES ======
--- ====== SEED: AVES (con length/weight) ======
-INSERT INTO birds (bird_id, name, common_name, size, length, weight, description, characteristics, image) VALUES
-  (gen_random_uuid(), 'Furnarius rufus', 'Hornero', 'Mediano', '18–20 cm', '45–56 g',
+-- ====== SEED: AVES (con rangos numéricos) ======
+INSERT INTO birds (bird_id, name, common_name, size, description, characteristics, image,
+                   length_min_mm, length_max_mm, weight_min_g, weight_max_g) VALUES
+  (gen_random_uuid(), 'Furnarius rufus', 'Hornero', 'Mediano',
    'Ave emblemática que construye nidos de barro con forma de horno.',
    'Nido de barro; territorial; frecuente en ciudades y áreas rurales.',
-   'https://example.com/img/furnarius_rufus.jpg'),
+   'https://example.com/img/furnarius_rufus.jpg', 180, 200, 45, 56),
 
-  (gen_random_uuid(), 'Gubernatrix cristata', 'Cardenal amarillo', 'Mediano', '20–23 cm', '40–65 g',
+  (gen_random_uuid(), 'Gubernatrix cristata', 'Cardenal amarillo', 'Mediano',
    'Passeriforme amarillo con máscara negra y cresta conspicua.',
    'Canto potente; matorrales y bosques abiertos; muy presionado por captura.',
-   'https://example.com/img/gubernatrix_cristata.jpg'),
+   'https://example.com/img/gubernatrix_cristata.jpg', 200, 230, 40, 65),
 
-  (gen_random_uuid(), 'Paroaria coronata', 'Cardenal común', 'Mediano', '18–20 cm', '35–45 g',
+  (gen_random_uuid(), 'Paroaria coronata', 'Cardenal común', 'Mediano',
    'Cresta roja, dorso gris, partes inferiores blancas.',
    'Común en parques y jardines; gregario; omnívoro.',
-   'https://example.com/img/paroaria_coronata.jpg'),
+   'https://example.com/img/paroaria_coronata.jpg', 180, 200, 35, 45),
 
-  (gen_random_uuid(), 'Chauna torquata', 'Chajá', 'Grande', '80–95 cm', '3–5 kg',
+  (gen_random_uuid(), 'Chauna torquata', 'Chajá', 'Grande',
    'Ave grande de humedales con potente vocalización y espolones alares.',
    'Parejas estables; vuela bien; frecuente en lagunas.',
-   'https://example.com/img/chauna_torquata.jpg'),
+   'https://example.com/img/chauna_torquata.jpg', 800, 950, 3000, 5000),
 
-  (gen_random_uuid(), 'Rhea americana', 'Ñandú grande', 'Muy grande', '130–170 cm', '20–40 kg',
+  (gen_random_uuid(), 'Rhea americana', 'Ñandú grande', 'Muy grande',
    'Ratite corredora de pastizales abiertos.',
    'Gregario; gran corredor; nidos comunales.',
-   'https://example.com/img/rhea_americana.jpg'),
+   'https://example.com/img/rhea_americana.jpg', 1300, 1700, 20000, 40000),
 
-  (gen_random_uuid(), 'Rhea pennata', 'Ñandú petiso', 'Muy grande', '90–100 cm', '15–28 kg',
+  (gen_random_uuid(), 'Rhea pennata', 'Ñandú petiso', 'Muy grande',
    'Ratite patagónica, más pequeño y críptico que R. americana.',
    'Adaptado a ambientes fríos y ventosos; baja densidad.',
-   'https://example.com/img/rhea_pennata.jpg'),
+   'https://example.com/img/rhea_pennata.jpg', 900, 1000, 15000, 28000),
 
-  (gen_random_uuid(), 'Phoenicopterus chilensis', 'Flamenco austral', 'Grande', '100–120 cm', '2–4 kg',
+  (gen_random_uuid(), 'Phoenicopterus chilensis', 'Flamenco austral', 'Grande',
    'Flamenco rosado pálido; filtra alimento en aguas someras.',
    'Colonial; movimientos locales amplios; sensible a disturbios.',
-   'https://example.com/img/phoenicopterus_chilensis.jpg'),
+   'https://example.com/img/phoenicopterus_chilensis.jpg', 1000, 1200, 2000, 4000),
 
-  (gen_random_uuid(), 'Ramphastos toco', 'Tucán toco', 'Grande', '55–65 cm', '500–860 g',
+  (gen_random_uuid(), 'Ramphastos toco', 'Tucán toco', 'Grande',
    'Mayor de los tucanes, con gran pico anaranjado.',
    'Principalmente frugívoro; conspicuo; usa cavidades para nidificar.',
-   'https://example.com/img/ramphastos_toco.jpg'),
+   'https://example.com/img/ramphastos_toco.jpg', 550, 650, 500, 860),
 
-  (gen_random_uuid(), 'Turdus rufiventris', 'Zorzal colorado', 'Mediano', '23–25 cm', '60–75 g',
+  (gen_random_uuid(), 'Turdus rufiventris', 'Zorzal colorado', 'Mediano',
    'Zorzal de vientre rufo y dorso pardo; canto melodioso.',
    'Común en jardines; dieta variada; anida en arbustos.',
-   'https://example.com/img/turdus_rufiventris.jpg'),
+   'https://example.com/img/turdus_rufiventris.jpg', 230, 250, 60, 75),
 
-  (gen_random_uuid(), 'Cyanocompsa brissonii', 'Reinamora grande', 'Mediano', '16–19 cm', '25–40 g',
+  (gen_random_uuid(), 'Cyanocompsa brissonii', 'Reinamora grande', 'Mediano',
    'Macho azul intenso con tonos negros; robusto.',
    'Consume semillas y frutos; discreto en matorrales.',
-   'https://example.com/img/cyanocompsa_brissonii.jpg'),
+   'https://example.com/img/cyanocompsa_brissonii.jpg', 160, 190, 25, 40),
 
-  (gen_random_uuid(), 'Cygnus melancoryphus', 'Cisne de cuello negro', 'Grande', '102–124 cm', '3–6 kg',
+  (gen_random_uuid(), 'Cygnus melancoryphus', 'Cisne de cuello negro', 'Grande',
    'Cuerpo blanco y cuello negro; lagunas y estuarios.',
    'Fidelidad de pareja; nidifica en juncales flotantes.',
-   'https://example.com/img/cygnus_melancoryphus.jpg'),
+   'https://example.com/img/cygnus_melancoryphus.jpg', 1020, 1240, 3000, 6000),
 
-  (gen_random_uuid(), 'Vanellus chilensis', 'Tero', 'Mediano', '32–38 cm', '190–400 g',
+  (gen_random_uuid(), 'Vanellus chilensis', 'Tero', 'Mediano',
    'Ave de pastizal muy vocal; antifaz negro característico.',
    'Defiende el nido activamente; común en praderas y parques.',
-   'https://example.com/img/vanellus_chilensis.jpg'),
+   'https://example.com/img/vanellus_chilensis.jpg', 320, 380, 190, 400),
 
-  (gen_random_uuid(), 'Buteogallus coronatus', 'Águila coronada', 'Grande', '73–85 cm', '2.3–3.0 kg',
+  (gen_random_uuid(), 'Buteogallus coronatus', 'Águila coronada', 'Grande',
    'Rapaz grande de zonas áridas; penacho corto.',
    'Muy baja densidad; amenazas por pérdida de hábitat y persecución.',
-   'https://example.com/img/buteogallus_coronatus.jpg'),
+   'https://example.com/img/buteogallus_coronatus.jpg', 730, 850, 2300, 3000),
 
-  (gen_random_uuid(), 'Cathartes aura', 'Jote cabeza colorada', 'Grande', '64–81 cm', '0.8–2.4 kg',
+  (gen_random_uuid(), 'Cathartes aura', 'Jote cabeza colorada', 'Grande',
    'Buitre planeador de cabeza roja desnuda.',
    'Carroñero; excelente olfato; frecuente en campo abierto.',
-   'https://example.com/img/cathartes_aura.jpg'),
+   'https://example.com/img/cathartes_aura.jpg', 640, 810, 800, 2400),
 
-  (gen_random_uuid(), 'Pipraeidea bonariensis', 'Frutero azul', 'Mediano', '14–16 cm', '20–35 g',
+  (gen_random_uuid(), 'Pipraeidea bonariensis', 'Frutero azul', 'Mediano',
    'Macho azul oscuro con vientre amarillo; hembra verdosa.',
    'Consume frutos y artrópodos; visita arboledas.',
-   'https://example.com/img/pipraeidea_bonariensis.jpg'),
+   'https://example.com/img/pipraeidea_bonariensis.jpg', 140, 160, 20, 35),
 
-  (gen_random_uuid(), 'Asio clamator', 'Lechuzón orejudo', 'Grande', '30–38 cm', '320–700 g',
+  (gen_random_uuid(), 'Asio clamator', 'Lechuzón orejudo', 'Grande',
    'Búho con penachos conspicuos; plumaje críptico.',
    'Crepuscular/nocturno; bordes de bosque y pastizales.',
-   'https://example.com/img/asio_clamator.jpg'),
+   'https://example.com/img/asio_clamator.jpg', 300, 380, 320, 700),
 
-  (gen_random_uuid(), 'Thraupis sayaca', 'Celestino', 'Mediano', '16–18 cm', '25–40 g',
+  (gen_random_uuid(), 'Thraupis sayaca', 'Celestino', 'Mediano',
    'Tangara celeste-grisácea; común en el NE de Sudamérica.',
    'Frugívoro; frecuenta jardines y arboledas.',
-   'https://example.com/img/thraupis_sayaca.jpg')
+   'https://example.com/img/thraupis_sayaca.jpg', 160, 180, 25, 40)
 ON CONFLICT (name) DO NOTHING;
 
 -- ====== ASOCIACIONES: BIRD -> RARITY ======
@@ -534,62 +532,56 @@ WHERE b.name = 'Thraupis sayaca' AND c.name IN ('Celeste','Gris')
 ON CONFLICT DO NOTHING;
 
 -- ====== SEED: SIGHTINGS ======
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -34.594900, -58.375700, 'Plaza San Martín, Buenos Aires (CABA)', NOW() - interval '10 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Furnarius rufus'
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -34.617000, -58.360000, 'Reserva Ecológica Costanera Sur, CABA', NOW() - interval '7 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'maria@example.com' AND b.name = 'Phoenicopterus chilensis'
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -35.577000, -58.016000, 'Laguna de Chascomús, Buenos Aires', NOW() - interval '5 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'juan@example.com' AND b.name = 'Cygnus melancoryphus'
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -32.890000, -68.865000, 'Parque General San Martín, Mendoza', NOW() - interval '3 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'sofia@example.com' AND b.name = 'Vanellus chilensis'
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -35.240000, -57.329000, 'Reserva El Destino, Magdalena (Bs As)', NOW() - interval '1 day',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'martin@example.com' AND b.name = 'Buteogallus coronatus'
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -34.587300, -58.416500, 'Jardín Botánico Carlos Thays, CABA', NOW() - interval '2 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata'
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, "dateTime", user_id, bird_id)
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -34.608000, -58.371000, 'Plaza de Mayo, CABA', NOW(),
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris'
 ON CONFLICT DO NOTHING;
 
-
+-- Completa rarezas faltantes con "Común" por default
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id
 FROM birds b
@@ -599,7 +591,6 @@ WHERE br.bird_id IS NULL
 ON CONFLICT DO NOTHING;
 
 -- ====== SEED: MIGRATORY WAVES (EJEMPLOS) ======
-
 WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Paroaria coronata'),
      p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires'),
      p_ju AS (SELECT province_id FROM provinces WHERE name = 'Jujuy'),
@@ -612,7 +603,6 @@ UNION ALL
 SELECT b.bird_id, 5, p_rn.province_id FROM bird b, p_rn
 ON CONFLICT DO NOTHING;
 
-
 WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Ramphastos toco'),
      p_mi AS (SELECT province_id FROM provinces WHERE name = 'Misiones'),
      p_co AS (SELECT province_id FROM provinces WHERE name = 'Corrientes')
@@ -621,5 +611,3 @@ SELECT b.bird_id, 3, p_mi.province_id FROM bird b, p_mi
 UNION ALL
 SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
 ON CONFLICT DO NOTHING;
-
-ALTER TABLE sightings RENAME COLUMN "dateTime" TO date_time;
