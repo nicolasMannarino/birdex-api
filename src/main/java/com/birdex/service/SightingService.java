@@ -10,12 +10,13 @@ import com.birdex.entity.UserEntity;
 import com.birdex.exception.BirdNotFoundException;
 import com.birdex.exception.UserNotFoundException;
 import com.birdex.mapper.SightingMapper;
+import com.birdex.repository.BirdRarityRepository;
 import com.birdex.repository.BirdRepository;
 import com.birdex.repository.SightingRepository;
 import com.birdex.repository.UserRepository;
-import com.birdex.repository.BirdRarityRepository;
 import com.birdex.utils.FileMetadataExtractor;
 import com.birdex.utils.FilenameGenerator;
+import com.birdex.utils.Slugs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -36,6 +37,9 @@ public class SightingService {
     private final BirdRepository birdRepository;
     private final BucketService bucketService;
     private final BirdRarityRepository birdRarityRepository;
+
+    private static final String SIGHTINGS_PREFIX = "sightings/";
+    private static final String CACHE = "public, max-age=31536000, immutable";
 
     public void registerSighting(SightingRequest request) {
         UserEntity userEntity = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> {
@@ -73,16 +77,26 @@ public class SightingService {
                 .bird(birdEntity)
                 .build();
 
+        // ---- archivo en birds/sightings/{email}/{slug-bird}/<filename> ----
         String mimeType = FileMetadataExtractor.extractMimeType(request.getBase64());
         byte[] data = FileMetadataExtractor.extractData(request.getBase64());
-        String key = FilenameGenerator.generate(request.getEmail(), request.getBirdName(), mimeType);
-        String fileUrl = bucketService.upload(key, data, mimeType);
+
+        String slugBird = Slugs.of(birdEntity.getName());
+        String generated = FilenameGenerator.generate(request.getEmail(), birdEntity.getName(), mimeType);
+        // FilenameGenerator suele devolver algo tipo: {email}/{Bird Name}/...  => lo colgamos de sightings/ y normalizamos ave a slug
+        // Armamos prefijo limpio y reusamos el nombre final del generator:
+        String key = SIGHTINGS_PREFIX + request.getEmail() + "/" + slugBird + "/" + lastPathSegment(generated);
+
+        bucketService.uploadBirdObject(key, data, toContentType(mimeType), CACHE);
 
         sightingRepository.save(sightingEntity);
     }
 
-    public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest sightingImageRequest) {
-        List<String> images = bucketService.listImagesAsBase64(sightingImageRequest.getEmail(), sightingImageRequest.getBirdName());
+    public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest req) {
+        String slugBird = Slugs.of(req.getBirdName());
+        String prefix = SIGHTINGS_PREFIX + req.getEmail() + "/" + slugBird + "/";
+        // requiere método nuevo chico en BucketService (ver más abajo)
+        var images = bucketService.listBirdsImagesAsBase64(prefix, Integer.MAX_VALUE);
         return SightingImagesByEmailResponse.builder()
                 .base64Images(images)
                 .build();
@@ -178,7 +192,11 @@ public class SightingService {
 
         List<String> imgs = imagesByUserCache.computeIfAbsent(
                 uEmail != null ? uEmail : "unknown",
-                k -> bucketService.listImagesAsBase64(uEmail, canonicalBirdName)
+                k -> {
+                    String slugBird = Slugs.of(canonicalBirdName);
+                    String prefix = SIGHTINGS_PREFIX + (uEmail != null ? uEmail : "unknown") + "/" + slugBird + "/";
+                    return bucketService.listBirdsImagesAsBase64(prefix, 50);
+                }
         );
 
         String locationString = formatLocation(se.getLatitude(), se.getLongitude(), se.getLocationText());
@@ -239,7 +257,6 @@ public class SightingService {
         return v != null ? v : def;
     }
 
-
     private static BigDecimal[] tryParseLatLonFromLocation(String location) {
         if (location == null || location.isBlank()) return null;
         String cleaned = location.trim().replaceAll("\\s+", " ");
@@ -269,5 +286,16 @@ public class SightingService {
             return latLon.isBlank() ? locationText : (latLon + " (" + locationText + ")");
         }
         return latLon;
+    }
+
+    private static String lastPathSegment(String path) {
+        if (path == null || path.isBlank()) return "image";
+        int i = path.lastIndexOf('/');
+        return (i >= 0 && i < path.length() - 1) ? path.substring(i + 1) : path;
+    }
+
+    private static String toContentType(String mimeType) {
+        if (mimeType == null || mimeType.isBlank()) return "image/jpeg";
+        return mimeType;
     }
 }

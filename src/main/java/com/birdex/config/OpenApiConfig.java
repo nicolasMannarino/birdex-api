@@ -7,6 +7,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
 
 @Configuration
 @OpenAPIDefinition(
@@ -15,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
                 @Server(url = "http://localhost:${server.port:8080}", description = "Local")
         }
 )
+@EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
 public class OpenApiConfig {
 
     @Bean

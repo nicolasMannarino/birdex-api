@@ -2,6 +2,7 @@ package com.birdex.controller;
 
 
 import com.birdex.dto.BirdDto;
+import com.birdex.dto.BirdListItem;
 import com.birdex.dto.BirdProgressResponse;
 import com.birdex.entity.BirdSummary;
 import com.birdex.service.BirdService;
@@ -34,6 +35,7 @@ public class BirdController {
         this.birdService = birdService;
     }
 
+    @Deprecated
     @GetMapping("/all")
     @Operation(
             summary = "Obtener progreso/listado de aves",
@@ -109,19 +111,52 @@ public class BirdController {
     @Operation(
             summary = "Buscar aves (paginado)",
             description = """
-            Filtra por rareza, color, tamaño y por rangos de longitud/peso.
-            Los parámetros numéricos son opcionales y pueden pasarse en cualquier combinación.
-            Orden configurable con `sort=campo,asc|desc`.
+        Filtra por rareza, color, tamaño y por rangos de longitud/peso.
+        Devuelve URLs cacheables de imagen (miniatura y media).
+        Parámetros numéricos opcionales; orden configurable con `sort=campo,asc|desc`.
         """
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Resultados paginados (Page<BirdSummary>)"),
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Resultados paginados (Page<BirdListItem>)",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BirdListItem.class),
+                            examples = @ExampleObject(value = """
+                {
+                  "content": [{
+                    "birdId": "6c8a0a7d-1cfc-4d13-9e4c-91b2d3f4b9d1",
+                    "name": "Turdus rufiventris",
+                    "commonName": "Zorzal colorado",
+                    "size": "Grande",
+                    "lengthMinMm": 230,
+                    "lengthMaxMm": 250,
+                    "weightMinG": 60,
+                    "weightMaxG": 75,
+                    "rarity": "Común",
+                    "colors": ["Gris","Blanco"],
+                    "thumbUrl": "https://cdn.birdex.com/birds/turdus-rufiventris/profile_256.webp",
+                    "imageUrl": "https://cdn.birdex.com/birds/turdus-rufiventris/profile_600.webp"
+                  }],
+                  "pageable": { "...": "..." },
+                  "totalElements": 1,
+                  "totalPages": 1,
+                  "last": true,
+                  "size": 20,
+                  "number": 0,
+                  "sort": { "...": "..." },
+                  "first": true,
+                  "numberOfElements": 1,
+                  "empty": false
+                }
+                """))
+            ),
             @ApiResponse(responseCode = "400", description = "Parámetros inválidos",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "500", description = "Error interno",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    public Page<BirdSummary> searchBirds(
+    public Page<BirdListItem> searchBirds(
             @Parameter(description = "Rareza (p. ej. Común, Poco común, Raro, Épico, Legendario)", example = "Común")
             @RequestParam(required = false) String rarity,
             @Parameter(description = "Color dominante", example = "amarillo")

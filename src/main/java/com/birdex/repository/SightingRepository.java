@@ -43,4 +43,8 @@ public interface SightingRepository extends JpaRepository<SightingEntity, UUID> 
             @Param("sizeLower")   String sizeLower,
             Pageable pageable
     );
+
+    @Query("select s from SightingEntity s join fetch s.bird b order by b.name asc, s.dateTime desc")
+    List<SightingEntity> findAllOrderByBirdAndDateTimeDesc();
+    void deleteAllByIdInBatch(Iterable<UUID> ids);
 }

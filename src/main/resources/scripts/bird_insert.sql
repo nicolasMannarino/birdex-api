@@ -611,3 +611,87 @@ SELECT b.bird_id, 3, p_mi.province_id FROM bird b, p_mi
 UNION ALL
 SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
 ON CONFLICT DO NOTHING;
+
+
+
+-- =========================================
+-- SIGHTINGS de prueba para job de limpieza
+-- =========================================
+
+-- ---------- Cluster A: Turdus rufiventris (Zorzal colorado) cerca del Obelisco ----------
+INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
+SELECT gen_random_uuid(), -34.603700, -58.381600, 'Obelisco CABA', NOW() - interval '9 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.603900, -58.381500, 'Obelisco CABA', NOW() - interval '8 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.603400, -58.381700, 'Obelisco CABA', NOW() - interval '7 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.603800, -58.381800, 'Obelisco CABA', NOW() - interval '6 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.603500, -58.381400, 'Obelisco CABA', NOW() - interval '5 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'martin@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.603650, -58.381550, 'Obelisco CABA', NOW() - interval '4 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.603720, -58.381480, 'Obelisco CABA', NOW() - interval '3 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.603780, -58.381620, 'Obelisco CABA', NOW() - interval '2 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.603830, -58.381560, 'Obelisco CABA', NOW() - interval '1 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
+
+-- Resultado esperado del job en este cluster: conservar 5 más recientes, borrar el resto.
+
+-- ---------- Cluster B: Vanellus chilensis (Tero) cerca de Parque Centenario ----------
+INSERT INTO sightings SELECT gen_random_uuid(), -34.606500, -58.436000, 'Parque Centenario', NOW() - interval '12 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.606420, -58.435900, 'Parque Centenario', NOW() - interval '11 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.606600, -58.436120, 'Parque Centenario', NOW() - interval '10 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.606520, -58.436180, 'Parque Centenario', NOW() - interval '9 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.606480, -58.435960, 'Parque Centenario', NOW() - interval '8 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'martin@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.606550, -58.436040, 'Parque Centenario', NOW() - interval '7 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.606580, -58.436090, 'Parque Centenario', NOW() - interval '6 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
+
+-- ---------- Cluster C: Paroaria coronata (Cardenal común) cerca del Jardín Botánico ----------
+INSERT INTO sightings SELECT gen_random_uuid(), -34.587300, -58.416500, 'Jardín Botánico', NOW() - interval '20 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.587360, -58.416420, 'Jardín Botánico', NOW() - interval '18 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.587240, -58.416560, 'Jardín Botánico', NOW() - interval '16 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'martin@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.587330, -58.416470, 'Jardín Botánico', NOW() - interval '14 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.587280, -58.416520, 'Jardín Botánico', NOW() - interval '12 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.587310, -58.416450, 'Jardín Botánico', NOW() - interval '10 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.587350, -58.416530, 'Jardín Botánico', NOW() - interval '8 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings SELECT gen_random_uuid(), -34.587270, -58.416490, 'Jardín Botánico', NOW() - interval '6 hours', u.user_id, b.bird_id
+FROM users u, birds b WHERE u.email = 'martin@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;

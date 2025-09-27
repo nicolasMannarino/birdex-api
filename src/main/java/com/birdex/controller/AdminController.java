@@ -37,13 +37,13 @@ public class AdminController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = Map.class),
                             examples = @ExampleObject(value = """
-                  { "bucket": "birds", "key": "profiles/zorzal.jpg", "url": "https://cdn.example.com/birds/profiles/zorzal.jpg" }
+                  { "bucket": "birds", "key": "zorzal-colorado/profile.jpg", "url": "http://localhost:9100/birds/zorzal-colorado/profile.jpg" }
                 """))),
             @ApiResponse(responseCode = "400", description = "Request inválido (base64 o contentType faltantes)"),
             @ApiResponse(responseCode = "500", description = "Error interno al subir al bucket")
     })
     public ResponseEntity<Map<String, String>> uploadProfileBase64(
-            @Parameter(description = "Nombre del ave (slug o común)", example = "zorzal-colorado")
+            @Parameter(description = "Nombre del ave (slug o específico)", example = "zorzal-colorado")
             @PathVariable String birdName,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
@@ -60,6 +60,12 @@ public class AdminController {
             )
             @RequestBody BirdProfileBase64Request body
     ) {
+        if (body == null
+                || body.getBase64() == null || body.getBase64().isBlank()
+                || body.getContentType() == null || body.getContentType().isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+
         String key = bucketService.putBirdProfileBase64(
                 birdName,
                 body.getBase64(),
@@ -95,6 +101,9 @@ public class AdminController {
             @PathVariable String birdName
     ) {
         String base64 = bucketService.getBirdProfileBase64(birdName);
+        if (base64 == null || base64.isBlank()) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(Map.of("base64", base64));
     }
 
@@ -117,6 +126,9 @@ public class AdminController {
             @PathVariable String birdName
     ) {
         String dataUri = bucketService.getBirdProfileDataUri(birdName);
+        if (dataUri == null || dataUri.endsWith(",")) { // data:...;base64,
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(Map.of("dataUri", dataUri));
     }
 
@@ -131,7 +143,7 @@ public class AdminController {
                             schema = @Schema(implementation = BulkUploadResult[].class),
                             examples = @ExampleObject(value = """
                         [
-                          { "birdName": "zorzal-colorado", "bucket": "birds", "key": "profiles/zorzal.jpg", "url": "https://cdn.example.com/birds/profiles/zorzal.jpg" },
+                          { "birdName": "zorzal-colorado", "bucket": "birds", "key": "zorzal-colorado/profile.jpg", "url": "http://localhost:9100/birds/zorzal-colorado/profile.jpg" },
                           { "birdName": "tucan-toco", "error": "Content-Type no soportado: image/gif" }
                         ]
                         """))),
@@ -154,7 +166,7 @@ public class AdminController {
                             },
                             {
                               "birdName": "tucan-toco",
-                              "base64": "/9j/4AAQSkZJRgABAQ...", 
+                              "base64": "/9j/4AAQSkZJRgABAQ...",
                               "contentType": "image/png"
                             }
                           ]
@@ -235,10 +247,10 @@ public class AdminController {
         @Schema(description = "Bucket destino", example = "birds")
         private String bucket;
 
-        @Schema(description = "Clave/Key generada", example = "profiles/zorzal.jpg")
+        @Schema(description = "Clave/Key generada", example = "zorzal-colorado/profile.jpg")
         private String key;
 
-        @Schema(description = "URL pública resultante", example = "https://cdn.example.com/birds/profiles/zorzal.jpg")
+        @Schema(description = "URL pública resultante", example = "http://localhost:9100/birds/zorzal-colorado/profile.jpg")
         private String url;
 
         @Schema(description = "Mensaje de error si el ítem falló")

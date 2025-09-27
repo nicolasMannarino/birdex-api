@@ -1,6 +1,7 @@
 package com.birdex.service;
 
 import com.birdex.config.BucketProperties;
+import com.birdex.dto.enums.BirdImageSize;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,18 +14,17 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.*;
-
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
+import java.time.Duration;
 import java.util.Base64;
-import java.util.ArrayList;
-import java.util.List;
-
-import java.net.URI;
 import java.util.Locale;
 
 @Service
@@ -33,7 +33,7 @@ public class BucketService {
     private final BucketProperties bucketProperties;
 
     private S3Client s3;
-
+    private S3Presigner s3Presigner;
 
     public BucketService(BucketProperties bucketProperties) {
         this.bucketProperties = bucketProperties;
@@ -43,7 +43,6 @@ public class BucketService {
     void init() {
         String endpoint = bucketProperties.getEndpoint();
         String bucket = bucketProperties.getBucket();
-
         String accessKey = bucketProperties.getAccessKey();
         String secretKey = bucketProperties.getSecretKey();
         String region = bucketProperties.getRegion();
@@ -68,6 +67,17 @@ public class BucketService {
         if (birdsBucket != null && !birdsBucket.isBlank()) {
             ensureBucketExists(birdsBucket);
         }
+
+        this.s3Presigner = S3Presigner.builder()
+                .region(Region.of(region))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(accessKey, secretKey)
+                ))
+                .endpointOverride(URI.create(endpoint))
+                .serviceConfiguration(S3Configuration.builder()
+                        .pathStyleAccessEnabled(true)
+                        .build())
+                .build();
     }
 
     private void ensureBucketExists(String bucket) {
@@ -89,83 +99,188 @@ public class BucketService {
         }
     }
 
-    public String upload(String key, byte[] data, String contentType) {
-        String bucket = bucketProperties.getBucket();
 
-        try {
-            s3.putObject(
-                    PutObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .contentType(contentType)
-                            .build(),
-                    RequestBody.fromBytes(data)
-            );
+    public String getBirdProfilePresignedUrl(String birdName, BirdImageSize size, Duration ttl) {
+        String bucket = birdsBucket();
+        if (bucket == null || bucket.isBlank()) {
+            throw new IllegalStateException("Config 'minio.birds.bucket' vacío o nulo");
+        }
 
-            String url = buildPublicUrl(key);
-            log.info("Archivo subido a MinIO: {}", url);
-            return url;
+        String slug = slugify(birdName);
+        String preferredKey = switch (size) {
+            case THUMB_256 -> slug + "/profile_256.jpg";
+            case MEDIUM_600 -> slug + "/profile_600.jpg";
+        };
+
+        String keyToUse;
+        if (objectExists(bucket, preferredKey)) {
+            keyToUse = preferredKey;
+        } else {
+            keyToUse = resolveProfileKey(bucket, birdName); // legacy profile.xxx
+            if (!objectExists(bucket, keyToUse)) {
+                log.warn("Imagen no encontrada para '{}': ni '{}' ni '{}'", birdName, preferredKey, keyToUse);
+            }
+        }
+
+        var getReq = software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(keyToUse)
+                .build();
+
+        PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(b -> b
+                .signatureDuration(ttl)
+                .getObjectRequest(getReq)
+        );
+
+        return presigned.url().toString();
+    }
+
+    public boolean birdsObjectExists(String key) {
+        String bucket = birdsBucket();
+        return objectExists(bucket, key);
+    }
+
+    public byte[] readBirdObject(String key) {
+        String bucket = birdsBucket();
+        try (ResponseInputStream<GetObjectResponse> in =
+                     s3.getObject(software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                             .bucket(bucket).key(key).build())) {
+            return readAll(in);
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) return null;
+            throw e;
         } catch (Exception e) {
-            log.error("Error subiendo '{}' al bucket '{}': {}", key, bucket, e.getMessage(), e);
-            throw new RuntimeException("No se pudo subir el archivo a MinIO", e);
+            throw new RuntimeException("Error leyendo objeto birds/" + key, e);
         }
     }
 
-    public List<String> listImagesAsBase64(String email, String birdName) {
-        return listImagesAsBase64(email, birdName, Integer.MAX_VALUE);
+    public void uploadBirdObject(String key, byte[] data, String contentType, String cacheControl) {
+        String bucket = birdsBucket();
+        try {
+            PutObjectRequest.Builder pb = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .contentType(contentType);
+            if (cacheControl != null && !cacheControl.isBlank()) {
+                pb.cacheControl(cacheControl);
+            }
+            s3.putObject(pb.build(), RequestBody.fromBytes(data));
+            log.info("Subido '{}' a bucket '{}' ({} bytes)", key, bucket, data.length);
+        } catch (Exception e) {
+            throw new RuntimeException("No se pudo subir birds/" + key, e);
+        }
     }
 
-    public List<String> listImagesAsBase64(String email, String birdName, int maxItems) {
-        String bucket = bucketProperties.getBucket();
+    public String resolveExistingProfileKey(String birdName) {
+        String bucket = birdsBucket();
+        return resolveProfileKey(bucket, birdName);
+    }
 
-        String safeBird = (birdName == null || birdName.isBlank())
-                ? "unknown"
-                : birdName.trim().replaceAll("\\s+", "_");
 
-        String prefix = email + "/" + safeBird + "/";
+    public String getBirdProfileBase64(String birdName) {
+        String bucket = birdsBucket();
+        String key = resolveProfileKey(bucket, birdName);
 
-        List<String> results = new ArrayList<>();
+        try (ResponseInputStream<GetObjectResponse> in =
+                     s3.getObject(software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                             .bucket(bucket).key(key).build())) {
+            byte[] bytes = readAll(in);
+            return Base64.getEncoder().encodeToString(bytes);
+        } catch (NoSuchKeyException e) {
+            log.info("No existe foto de perfil '{}'/'{}'", bucket, key);
+            return "";
+        } catch (S3Exception e) {
+            String code = e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null;
+            if (e.statusCode() == 404 || "NoSuchKey".equals(code)) {
+                log.info("No existe foto de perfil '{}'/'{}' ({} {})", bucket, key, e.statusCode(), code);
+                return "";
+            }
+            log.error("Error S3 leyendo perfil '{}'/'{}': {}", bucket, key,
+                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage(), e);
+            throw new RuntimeException("No se pudo obtener la imagen de perfil desde MinIO", e);
+        } catch (Exception e) {
+            log.error("Error leyendo perfil '{}'/'{}': {}", bucket, key, e.getMessage(), e);
+            throw new RuntimeException("No se pudo obtener la imagen de perfil desde MinIO", e);
+        }
+    }
 
+    public String getBirdProfileDataUri(String birdName) {
+        String bucket = birdsBucket();
+        String key = resolveProfileKey(bucket, birdName);
+
+        String contentType = "image/jpeg";
         try {
-            ListObjectsV2Request req = ListObjectsV2Request.builder()
-                    .bucket(bucket)
-                    .prefix(prefix)
-                    .build();
+            HeadObjectResponse head = s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+            if (head.contentType() != null && !head.contentType().isBlank()) {
+                contentType = head.contentType();
+            } else {
+                contentType = mimeFromExt(extensionOf(key));
+            }
+        } catch (Exception ignore) {
+            log.error("Ignore exception");
+        }
 
-            ListObjectsV2Iterable pages = s3.listObjectsV2Paginator(req);
+        String b64 = getBirdProfileBase64(birdName);
+        return "data:" + contentType + ";base64," + b64;
+    }
 
-            outer:
-            for (var page : pages) {
-                for (S3Object obj : page.contents()) {
-                    String key = obj.key();
-                    if (!isImageKey(key)) continue;
+    private boolean objectExists(String bucket, String key) {
+        try {
+            s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) return false;
+            throw e;
+        }
+    }
 
-                    GetObjectRequest getReq = GetObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .build();
+    private String resolveProfileKey(String bucket, String birdName) {
+        String slug = slugify(birdName);
+        String base = profileBaseName();
+        String prefix = slug + "/" + base;
 
-                    try (InputStream in = s3.getObject(getReq)) {
-                        byte[] bytes = readAll(in);
-                        String b64 = Base64.getEncoder().encodeToString(bytes);
-                        results.add(b64);
-                        if (results.size() >= maxItems) break outer;
-                    }
+        ListObjectsV2Request req = ListObjectsV2Request.builder()
+                .bucket(bucket)
+                .prefix(prefix)
+                .build();
+
+        ListObjectsV2Iterable pages = s3.listObjectsV2Paginator(req);
+        for (var page : pages) {
+            for (S3Object obj : page.contents()) {
+                String key = obj.key();
+                if (!key.endsWith("/")) {
+                    return key;
                 }
             }
-
-            log.info("Se obtuvieron {} imágenes en Base64 para el prefijo {}", results.size(), prefix);
-            return results;
-
-        } catch (Exception e) {
-            log.error("Error listando/leyendo imágenes bajo '{}': {}", prefix, e.getMessage(), e);
-            throw new RuntimeException("No se pudieron obtener las imágenes en Base64 desde MinIO", e);
         }
+        return slug + "/" + base + ".jpg";
     }
 
-    private static boolean isImageKey(String key) {
-        String lower = key.toLowerCase();
-        return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
+    private String birdsBucket() {
+        return bucketProperties.getBirds() != null ? bucketProperties.getBirds().getBucket() : null;
+    }
+
+    private String profileBaseName() {
+        return (bucketProperties.getBirds() != null && bucketProperties.getBirds().getProfileObjectName() != null)
+                ? bucketProperties.getBirds().getProfileObjectName()
+                : "profile";
+    }
+
+    public String buildPublicUrl(String bucket, String key) {
+        String endpoint = bucketProperties.getEndpoint();
+        String base = endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
+        return String.format("%s/%s/%s", base, bucket, key);
+    }
+
+    private static String slugify(String input) {
+        if (input == null) return "unknown";
+        String n = Normalizer.normalize(input, Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        return n.toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
     }
 
     private static byte[] readAll(InputStream in) throws java.io.IOException {
@@ -178,15 +293,85 @@ public class BucketService {
         return baos.toByteArray();
     }
 
-
-    public String buildPublicUrl(String key) {
-        String endpoint = bucketProperties.getEndpoint();
-        String bucket = bucketProperties.getBucket();
-
-        String base = endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
-        return String.format("%s/%s/%s", base, bucket, key);
+    private static String extensionOf(String key) {
+        int i = (key != null) ? key.lastIndexOf('.') : -1;
+        return (i > 0 && i < key.length() - 1) ? key.substring(i) : ".jpg";
     }
 
+    private static String mimeFromExt(String ext) {
+        if (ext == null) return "image/jpeg";
+        return switch (ext.toLowerCase(Locale.ROOT)) {
+            case ".png" -> "image/png";
+            case ".webp" -> "image/webp";
+            case ".gif" -> "image/gif";
+            case ".bmp" -> "image/bmp";
+            case ".tif", ".tiff" -> "image/tiff";
+            case ".jpg", ".jpeg" -> "image/jpeg";
+            default -> "image/jpeg";
+        };
+    }
+
+    private static String extFromContentType(String contentType) {
+        if (contentType == null) return ".jpg";
+        return switch (contentType.toLowerCase(Locale.ROOT)) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "image/gif" -> ".gif";
+            case "image/bmp" -> ".bmp";
+            case "image/tiff" -> ".tiff";
+            case "image/jpg", "image/jpeg" -> ".jpg";
+            default -> ".jpg";
+        };
+    }
+
+    private static byte[] decodeBase64(String base64) {
+        if (base64 == null) throw new IllegalArgumentException("base64 es requerido");
+        String trimmed = base64.trim();
+        int comma = trimmed.indexOf(',');
+        String payload = (trimmed.startsWith("data:") && comma > 0)
+                ? trimmed.substring(comma + 1)
+                : trimmed;
+        payload = payload.replaceAll("\\s", "");
+        return Base64.getDecoder().decode(payload.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public java.util.List<String> listBirdsImagesAsBase64(String prefix, int maxItems) {
+        String bucket = birdsBucket();
+        java.util.List<String> results = new java.util.ArrayList<>();
+        try {
+            ListObjectsV2Request req = ListObjectsV2Request.builder()
+                    .bucket(bucket)
+                    .prefix(prefix)
+                    .build();
+
+            for (var page : s3.listObjectsV2Paginator(req)) {
+                for (S3Object obj : page.contents()) {
+                    String key = obj.key();
+                    if (!isImageKey(key)) continue;
+
+                    var getReq = GetObjectRequest.builder().bucket(bucket).key(key).build();
+                    try (ResponseInputStream<GetObjectResponse> in = s3.getObject(getReq)) {
+                        byte[] bytes = readAll(in);
+                        results.add(Base64.getEncoder().encodeToString(bytes));
+                        if (results.size() >= maxItems) return results;
+                    }
+                }
+            }
+            return results;
+        } catch (Exception e) {
+            throw new RuntimeException("No se pudieron listar imágenes en birds bajo '" + prefix + "'", e);
+        }
+    }
+
+    public java.util.List<String> listBirdsImagesAsBase64(String prefix) {
+        return listBirdsImagesAsBase64(prefix, Integer.MAX_VALUE);
+    }
+
+    private static boolean isImageKey(String key) {
+        String lower = key.toLowerCase();
+        return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")
+                || lower.endsWith(".webp");
+    }
 
     public String putBirdProfileBase64(String birdName, String base64, String contentType) {
         String bucket = birdsBucket();
@@ -215,146 +400,4 @@ public class BucketService {
             throw new RuntimeException("No se pudo subir la imagen de perfil a MinIO", e);
         }
     }
-
-    public String getBirdProfileBase64(String birdName) {
-        String bucket = birdsBucket();
-        String key = resolveProfileKey(bucket, birdName);
-
-        try (ResponseInputStream<GetObjectResponse> in =
-                     s3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())) {
-
-            byte[] bytes = readAll(in);
-            return Base64.getEncoder().encodeToString(bytes);
-
-        } catch (NoSuchKeyException e) {
-            log.info("No existe foto de perfil '{}'/'{}'", bucket, key);
-            return "";
-
-        } catch (S3Exception e) {
-            String code = e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null;
-            if (e.statusCode() == 404 || "NoSuchKey".equals(code)) {
-                log.info("No existe foto de perfil '{}'/'{}' ({} {})", bucket, key, e.statusCode(), code);
-                return "";
-            }
-            log.error("Error S3 leyendo perfil '{}'/'{}': {}", bucket, key,
-                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage(), e);
-            throw new RuntimeException("No se pudo obtener la imagen de perfil desde MinIO", e);
-
-        } catch (Exception e) {
-            log.error("Error leyendo perfil '{}'/'{}': {}", bucket, key, e.getMessage(), e);
-            throw new RuntimeException("No se pudo obtener la imagen de perfil desde MinIO", e);
-        }
-    }
-
-    public String getBirdProfileDataUri(String birdName) {
-        String bucket = birdsBucket();
-        String key = resolveProfileKey(bucket, birdName);
-
-        String contentType = "image/jpeg";
-        try {
-            HeadObjectResponse head = s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
-            if (head.contentType() != null && !head.contentType().isBlank()) {
-                contentType = head.contentType();
-            } else {
-                contentType = mimeFromExt(extensionOf(key));
-            }
-        } catch (Exception ignore) { /* fallback por extensión */ }
-
-        String b64 = getBirdProfileBase64(birdName);
-        return "data:" + contentType + ";base64," + b64;
-    }
-
-
-    private String resolveProfileKey(String bucket, String birdName) {
-        String slug = slugify(birdName);
-        String base = profileBaseName();
-        String prefix = slug + "/" + base;
-
-        ListObjectsV2Request req = ListObjectsV2Request.builder()
-                .bucket(bucket)
-                .prefix(prefix)
-                .build();
-
-        for (var page : s3.listObjectsV2Paginator(req)) {
-            for (S3Object obj : page.contents()) {
-                String key = obj.key();
-                if (!key.endsWith("/")) {
-                    return key;
-                }
-            }
-        }
-
-        return slug + "/" + base + ".jpg";
-    }
-
-
-    private String birdsBucket() {
-        return bucketProperties.getBirds() != null ? bucketProperties.getBirds().getBucket() : null;
-    }
-
-    private String profileBaseName() {
-        return (bucketProperties.getBirds() != null && bucketProperties.getBirds().getProfileObjectName() != null)
-                ? bucketProperties.getBirds().getProfileObjectName()
-                : "profile";
-    }
-
-    public String buildPublicUrl(String bucket, String key) {
-        String endpoint = bucketProperties.getEndpoint();
-        String base = endpoint.endsWith("/") ? endpoint.substring(0, endpoint.length() - 1) : endpoint;
-        return String.format("%s/%s/%s", base, bucket, key);
-    }
-
-
-    private static String slugify(String input) {
-        if (input == null) return "unknown";
-        String n = Normalizer.normalize(input, Normalizer.Form.NFD)
-                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
-        return n.toLowerCase()
-                .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("(^-|-$)", "");
-    }
-
-    private static String extFromContentType(String contentType) {
-        if (contentType == null) return ".jpg";
-        return switch (contentType.toLowerCase(Locale.ROOT)) {
-            case "image/png" -> ".png";
-            case "image/webp" -> ".webp";
-            case "image/gif" -> ".gif";
-            case "image/bmp" -> ".bmp";
-            case "image/tiff" -> ".tiff";
-            case "image/jpg", "image/jpeg" -> ".jpg";
-            default -> ".jpg";
-        };
-    }
-
-    private static String mimeFromExt(String ext) {
-        if (ext == null) return "image/jpeg";
-        return switch (ext.toLowerCase(Locale.ROOT)) {
-            case ".png" -> "image/png";
-            case ".webp" -> "image/webp";
-            case ".gif" -> "image/gif";
-            case ".bmp" -> "image/bmp";
-            case ".tif", ".tiff" -> "image/tiff";
-            case ".jpg", ".jpeg" -> "image/jpeg";
-            default -> "image/jpeg";
-        };
-    }
-
-    private static String extensionOf(String key) {
-        int i = (key != null) ? key.lastIndexOf('.') : -1;
-        return (i > 0 && i < key.length() - 1) ? key.substring(i) : ".jpg";
-    }
-
-
-    private static byte[] decodeBase64(String base64) {
-        if (base64 == null) throw new IllegalArgumentException("base64 es requerido");
-        String trimmed = base64.trim();
-        int comma = trimmed.indexOf(',');
-        String payload = (trimmed.startsWith("data:") && comma > 0)
-                ? trimmed.substring(comma + 1)
-                : trimmed;
-        payload = payload.replaceAll("\\s", "");
-        return Base64.getDecoder().decode(payload.getBytes(StandardCharsets.UTF_8));
-    }
-
 }

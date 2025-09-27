@@ -1,12 +1,13 @@
 package com.birdex.service;
 
 import com.birdex.dto.BirdDto;
+import com.birdex.dto.BirdListItem;
 import com.birdex.dto.BirdProgressProfile;
 import com.birdex.dto.BirdProgressResponse;
+import com.birdex.dto.enums.BirdImageSize;
 import com.birdex.entity.BirdEntity;
 import com.birdex.entity.BirdNamesView;
 import com.birdex.entity.BirdSummary;
-import com.birdex.entity.BirdSummaryEnriched;
 import com.birdex.mapper.BirdMapper;
 import com.birdex.repository.BirdColorRepository;
 import com.birdex.repository.BirdRarityRepository;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -85,7 +87,7 @@ public class BirdService {
     }
 
 
-    public Page<BirdSummary> search(
+    public Page<BirdListItem> search(
             String rarity,
             String color,
             String size,
@@ -102,28 +104,43 @@ public class BirdService {
         Integer lenMin = cleanPositive(lengthMinMm);
         Integer lenMax = cleanPositive(lengthMaxMm);
         if (lenMin != null && lenMax != null && lenMin > lenMax) {
-            int tmp = lenMin; lenMin = lenMax; lenMax = tmp;
+            int tmp = lenMin;
+            lenMin = lenMax;
+            lenMax = tmp;
         }
 
         Integer wMin = cleanPositive(weightMinG);
         Integer wMax = cleanPositive(weightMaxG);
         if (wMin != null && wMax != null && wMin > wMax) {
-            int tmp = wMin; wMin = wMax; wMax = tmp;
+            int tmp = wMin;
+            wMin = wMax;
+            wMax = tmp;
         }
 
         Page<BirdSummary> page = birdRepository.searchBirds(r, c, s, lenMin, lenMax, wMin, wMax, pageable);
 
-        List<BirdSummary> enriched = page.getContent().stream()
+        List<BirdListItem> content = page.getContent().stream()
                 .map(it -> {
-
-                    String dataUri = bucketService.getBirdProfileDataUri(it.getName());
-
-                    return new BirdSummaryEnriched(it, dataUri);
+                    String thumb  = bucketService.getBirdProfilePresignedUrl(it.getName(), BirdImageSize.THUMB_256, Duration.ofHours(24));
+                    String medium = bucketService.getBirdProfilePresignedUrl(it.getName(), BirdImageSize.MEDIUM_600, Duration.ofHours(24));
+                    return new BirdListItem(
+                            it.getBirdId(),
+                            it.getName(),
+                            it.getCommonName(),
+                            it.getSize(),
+                            it.getLengthMinMm(),
+                            it.getLengthMaxMm(),
+                            it.getWeightMinG(),
+                            it.getWeightMaxG(),
+                            it.getRarity(),
+                            it.getColors(),
+                            thumb,
+                            medium
+                    );
                 })
-                .map(BirdSummary.class::cast)
                 .toList();
 
-        return new PageImpl<>(enriched, pageable, page.getTotalElements());
+        return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
     private String normalize(String v) {

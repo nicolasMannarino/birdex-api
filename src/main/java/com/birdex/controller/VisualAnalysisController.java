@@ -2,6 +2,8 @@ package com.birdex.controller;
 
 import com.birdex.domain.BirdDetectRequest;
 import com.birdex.domain.BirdDetectResponse;
+import com.birdex.domain.BirdVideoDetectRequest;
+import com.birdex.domain.BirdVideoDetectResponse;
 import com.birdex.service.DetectionService;
 import com.birdex.dto.ErrorResponse; // si tenés tu DTO de error global
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,5 +62,27 @@ public class VisualAnalysisController {
     ) {
         BirdDetectResponse response = detectionService.detect(request);
         return ResponseEntity.ok(response);
+    }
+
+
+    @PostMapping(value = "/video", consumes = "application/json", produces = "application/json")
+    @Operation(summary = "Detectar ave en video",
+            description = "Recibe un video en base64 (hasta 15s). Muestrea frames y devuelve lista y mejor resultado.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    description = "OK",
+                    content = @Content(schema = @Schema(implementation = BirdVideoDetectResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Request inválido",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Error interno",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+    })
+    public ResponseEntity<BirdVideoDetectResponse> analyzeVideo(
+            @org.springframework.web.bind.annotation.RequestBody BirdVideoDetectRequest request
+    ) {
+        if (request == null || request.getFileBase64() == null || request.getFileBase64().isBlank()) {
+            throw new IllegalArgumentException("Body inválido: falta fileBase64");
+        }
+        return ResponseEntity.ok(detectionService.detectVideo(request));
     }
 }
