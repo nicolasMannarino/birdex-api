@@ -333,6 +333,11 @@ INSERT INTO birds (bird_id, name, common_name, size, description, characteristic
    'Fidelidad de pareja; nidifica en juncales flotantes.',
    'https://example.com/img/cygnus_melancoryphus.jpg', 1020, 1240, 3000, 6000),
 
+  (gen_random_uuid(),'Desconocida','Ave no identificada','N/A',
+  'Esta entrada representa aves que no pudieron ser identificadas por el modelo.',
+  'Sin características registradas.','https://example.com/img/desconocida.jpg',
+  NULL,NULL,NULL,NULL),
+
   (gen_random_uuid(), 'Vanellus chilensis', 'Tero', 'Mediano',
    'Ave de pastizal muy vocal; antifaz negro característico.',
    'Defiende el nido activamente; común en praderas y parques.',

@@ -102,4 +102,24 @@ public interface BirdRepository extends JpaRepository<BirdEntity, UUID>, JpaSpec
 
     @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province"})
     Optional<BirdEntity> findByName(String name);
+
+    @Query("""
+       select count(b)>0 
+       from BirdEntity b
+       where lower(b.name) = lower(:q)
+          or lower(b.commonName) = lower(:q)
+       """)
+    boolean existsByAnyName(@Param("q") String q);
+
+    boolean existsByNameIgnoreCase(String name);
+
+    boolean existsByCommonNameIgnoreCase(String commonName);
+
+    @Query("""
+        select count(b)>0 
+        from BirdEntity b
+        where lower(function('unaccent', b.name)) = lower(function('unaccent', :q))
+           or lower(function('unaccent', b.commonName)) = lower(function('unaccent', :q))
+    """)
+    boolean existsNormalized(@Param("q") String q);
 }
