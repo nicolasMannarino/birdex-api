@@ -21,8 +21,11 @@ public class UserEntity {
     @Column(name = "username", nullable = false)
     private String username;
 
-    @Column(name = "password", nullable = false)
-    private String password;
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
+    @Column(nullable = false)
+    private String role; // "USER" | "ADMIN"
 
     @Column(name = "email", nullable = false, unique = true)
     private String email;

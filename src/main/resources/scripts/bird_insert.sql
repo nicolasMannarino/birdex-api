@@ -1,12 +1,15 @@
 -- 001_all.sql  (PostgreSQL)
 -- Crea extensión, esquema y datos iniciales para birds/colors/rarities + tablas puente
--- + Provinces y Migratory Waves (mes/provincia por ave)
+-- + Provinces, Missions, Achievements, Levels, y seeds.
+-- Corrige USERS -> password_hash + role y agrega unicidad por username.
 
 -- ====== EXTENSION ======
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS unaccent;
 
 -- ====== ESQUEMA ======
+
+-- ---------- BIRDS ----------
 CREATE TABLE IF NOT EXISTS birds (
     bird_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -16,7 +19,7 @@ CREATE TABLE IF NOT EXISTS birds (
     characteristics TEXT NOT NULL,
     image TEXT NOT NULL,
 
-    -- Nuevo: rangos numéricos
+    -- Rangos numéricos
     length_min_mm INT,
     length_max_mm INT,
     weight_min_g  INT,
@@ -42,7 +45,7 @@ CREATE TABLE IF NOT EXISTS birds (
 
 DO $$
 BEGIN
-    -- Si existía una columna vieja 'migratory_wave_url', la removemos (compat)
+    -- Compatibilidad: si existía columna vieja 'migratory_wave_url', eliminarla
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'birds' AND column_name = 'migratory_wave_url'
@@ -51,18 +54,74 @@ BEGIN
     END IF;
 END $$;
 
--- ====== TABLA USERS ======
+-- ---------- USERS ----------
+-- Definición final esperada (password_hash + role, unicidad username/email)
 CREATE TABLE IF NOT EXISTS users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT NOT NULL,
-    password TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'USER',
     email TEXT NOT NULL UNIQUE,
-    points INT DEFAULT 0,
-    level INT DEFAULT 1,
-    level_name TEXT DEFAULT 'Novato'
+    points INT NOT NULL DEFAULT 0,
+    level INT NOT NULL DEFAULT 1,
+    level_name TEXT NOT NULL DEFAULT 'Novato',
+    CONSTRAINT users_username_uk UNIQUE (username)
 );
 
--- ====== TABLA SIGHTINGS ======
+-- Bloque de "autocuración" para instalaciones previas
+DO $$
+BEGIN
+    -- Si aún existe 'password' (texto plano), renombrar a 'password_hash'
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='users' AND column_name='password'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='users' AND column_name='password_hash'
+    ) THEN
+        EXECUTE 'ALTER TABLE users RENAME COLUMN password TO password_hash';
+    END IF;
+
+    -- Agregar 'password_hash' si no existe (para DB muy vieja)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='users' AND column_name='password_hash'
+    ) THEN
+        EXECUTE 'ALTER TABLE users ADD COLUMN password_hash TEXT';
+        EXECUTE 'UPDATE users SET password_hash = '''' WHERE password_hash IS NULL';
+        EXECUTE 'ALTER TABLE users ALTER COLUMN password_hash SET NOT NULL';
+    END IF;
+
+    -- Agregar 'role' con default USER si no existe
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='users' AND column_name='role'
+    ) THEN
+        EXECUTE 'ALTER TABLE users ADD COLUMN role TEXT';
+        EXECUTE 'UPDATE users SET role = ''USER'' WHERE role IS NULL';
+        EXECUTE 'ALTER TABLE users ALTER COLUMN role SET NOT NULL';
+        EXECUTE 'ALTER TABLE users ALTER COLUMN role SET DEFAULT ''USER''';
+    END IF;
+
+    -- Agregar constraint de unicidad por username si no existe
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'users_username_uk'
+    ) THEN
+        -- Eliminar duplicados en username si los hubiera (conserva el primero)
+        -- Nota: sólo si querés "forzar", de lo contrario quitá este bloque.
+        -- Aquí asumimos que no hay duplicados o que no importa conservar seeds.
+        EXECUTE 'ALTER TABLE users ADD CONSTRAINT users_username_uk UNIQUE (username)';
+    END IF;
+END $$;
+
+-- Hash automático en seed vieja: si hay filas que NO están en BCrypt, las encripta.
+-- Detecta por prefijo distinto de $2a/$2b/$2y.
+UPDATE users
+SET password_hash = crypt(password_hash, gen_salt('bf'))
+WHERE password_hash IS NOT NULL
+  AND password_hash !~ '^\$2[aby]\$';
+
+-- ---------- SIGHTINGS ----------
 CREATE TABLE IF NOT EXISTS sightings (
     sighting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     latitude    NUMERIC(9,6) NOT NULL,
@@ -80,6 +139,7 @@ CREATE TABLE IF NOT EXISTS sightings (
 CREATE INDEX IF NOT EXISTS idx_sightings_lat_lon ON sightings (latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_sightings_datetime ON sightings (date_time);
 
+-- ---------- COLORS / RARITIES / PUENTES ----------
 CREATE TABLE IF NOT EXISTS colors (
     color_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE
@@ -106,12 +166,13 @@ CREATE TABLE IF NOT EXISTS bird_rarity (
     CONSTRAINT fk_rarity FOREIGN KEY (rarity_id) REFERENCES rarities(rarity_id) ON DELETE CASCADE
 );
 
--- ====== PROVINCES ======
+-- ---------- PROVINCES ----------
 CREATE TABLE IF NOT EXISTS provinces (
     province_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        TEXT NOT NULL UNIQUE
 );
 
+-- ---------- GAMIFICACIÓN ----------
 CREATE TABLE IF NOT EXISTS missions (
     mission_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -156,6 +217,9 @@ CREATE TABLE IF NOT EXISTS levels (
     xp_required INT NOT NULL
 );
 
+-- ====== SEEDS ======
+
+-- LEVELS
 INSERT INTO levels (level, name, xp_required) VALUES
 (1, 'Novato', 0),
 (2, 'Aprendiz', 50),
@@ -166,6 +230,7 @@ INSERT INTO levels (level, name, xp_required) VALUES
 (7, 'Legendario', 1200)
 ON CONFLICT (level) DO NOTHING;
 
+-- MISSIONS
 INSERT INTO missions (name, description, type, objective, reward_points)
 VALUES
 ('Primer Avistamiento del dia', 'Registra tu primer avistamiento del dia', 'daily', '{"sightings":1}', 10),
@@ -173,6 +238,7 @@ VALUES
 ('Cazador de Raros', 'Encuentra 1 ave rara', 'unique', '{"rarity":"Raro","count":1}', 50)
 ON CONFLICT DO NOTHING;
 
+-- ACHIEVEMENTS
 INSERT INTO achievements (name, description, criteria, icon_url)
 VALUES
 ('Novato', 'Completa tu primer avistamiento', '{"sightings":1}', '/icons/novato.png'),
@@ -185,60 +251,7 @@ VALUES
 ('Coleccionista', 'Registrá 100 avistamientos en total', '{"total_sightings":100}', '/icons/coleccionista.png')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO rarity_points (rarity_id, points)
-SELECT r.rarity_id, CASE r.name
-    WHEN 'Común' THEN 5
-    WHEN 'Poco común' THEN 10
-    WHEN 'Raro' THEN 20
-    WHEN 'Épico' THEN 40
-    WHEN 'Legendario' THEN 80
-END
-FROM rarities r
-ON CONFLICT (rarity_id) DO NOTHING;
-
-INSERT INTO provinces (name) VALUES
-  ('Buenos Aires'),
-  ('Ciudad Autónoma de Buenos Aires'),
-  ('Catamarca'),
-  ('Chaco'),
-  ('Chubut'),
-  ('Córdoba'),
-  ('Corrientes'),
-  ('Entre Ríos'),
-  ('Formosa'),
-  ('Jujuy'),
-  ('La Pampa'),
-  ('La Rioja'),
-  ('Mendoza'),
-  ('Misiones'),
-  ('Neuquén'),
-  ('Río Negro'),
-  ('Salta'),
-  ('San Juan'),
-  ('San Luis'),
-  ('Santa Cruz'),
-  ('Santa Fe'),
-  ('Santiago del Estero'),
-  ('Tierra del Fuego'),
-  ('Tucumán')
-ON CONFLICT (name) DO NOTHING;
-
--- ====== MIGRATORY WAVES (mes/provincia por ave) ======
-CREATE TABLE IF NOT EXISTS migratory_waves (
-    bird_id     UUID     NOT NULL,
-    month       SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
-    province_id UUID     NOT NULL,
-
-    CONSTRAINT migratory_waves_pk PRIMARY KEY (bird_id, month, province_id),
-    CONSTRAINT fk_wave_bird     FOREIGN KEY (bird_id)     REFERENCES birds(bird_id)     ON DELETE CASCADE,
-    CONSTRAINT fk_wave_province FOREIGN KEY (province_id) REFERENCES provinces(province_id) ON DELETE RESTRICT
-);
-
-CREATE INDEX IF NOT EXISTS idx_wave_bird_month   ON migratory_waves (bird_id, month);
-CREATE INDEX IF NOT EXISTS idx_wave_month        ON migratory_waves (month);
-CREATE INDEX IF NOT EXISTS idx_wave_province     ON migratory_waves (province_id);
-
--- ====== SEED: RAREZAS ======
+-- RARITIES
 INSERT INTO rarities (rarity_id, name) VALUES
   (gen_random_uuid(), 'Común'),
   (gen_random_uuid(), 'Poco común'),
@@ -247,7 +260,7 @@ INSERT INTO rarities (rarity_id, name) VALUES
   (gen_random_uuid(), 'Legendario')
 ON CONFLICT (name) DO NOTHING;
 
--- ====== SEED: COLORES ======
+-- COLORS
 INSERT INTO colors (color_id, name) VALUES
   (gen_random_uuid(), 'Marrón'),
   (gen_random_uuid(), 'Canela'),
@@ -266,16 +279,17 @@ INSERT INTO colors (color_id, name) VALUES
   (gen_random_uuid(), 'Blanquecino')
 ON CONFLICT (name) DO NOTHING;
 
--- ====== SEED: USERS ======
-INSERT INTO users (user_id, username, password, email) VALUES
-  (gen_random_uuid(), 'lucas', 'pass123', 'lucas@example.com'),
-  (gen_random_uuid(), 'maria', 'pass123', 'maria@example.com'),
-  (gen_random_uuid(), 'juan', 'pass123', 'juan@example.com'),
-  (gen_random_uuid(), 'sofia', 'pass123', 'sofia@example.com'),
-  (gen_random_uuid(), 'martin', 'pass123', 'martin@example.com')
+-- USERS (hash BCrypt con pgcrypto + role)
+INSERT INTO users (user_id, username, password_hash, role, email)
+VALUES
+  (gen_random_uuid(), 'lucas',  crypt('pass123', gen_salt('bf')), 'USER', 'lucas@example.com'),
+  (gen_random_uuid(), 'maria',  crypt('pass123', gen_salt('bf')), 'USER', 'maria@example.com'),
+  (gen_random_uuid(), 'juan',   crypt('pass123', gen_salt('bf')), 'USER', 'juan@example.com'),
+  (gen_random_uuid(), 'sofia',  crypt('pass123', gen_salt('bf')), 'USER', 'sofia@example.com'),
+  (gen_random_uuid(), 'martin', crypt('pass123', gen_salt('bf')), 'USER', 'martin@example.com')
 ON CONFLICT (email) DO NOTHING;
 
--- ====== SEED: AVES (con rangos numéricos) ======
+-- BIRDS (con rangos numéricos)
 INSERT INTO birds (bird_id, name, common_name, size, description, characteristics, image,
                    length_min_mm, length_max_mm, weight_min_g, weight_max_g) VALUES
   (gen_random_uuid(), 'Furnarius rufus', 'Hornero', 'Mediano',
@@ -369,88 +383,72 @@ INSERT INTO birds (bird_id, name, common_name, size, description, characteristic
    'https://example.com/img/thraupis_sayaca.jpg', 160, 180, 25, 40)
 ON CONFLICT (name) DO NOTHING;
 
--- ====== ASOCIACIONES: BIRD -> RARITY ======
+-- Asociaciones BIRD -> RARITY
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Furnarius rufus' AND r.name = 'Común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Furnarius rufus' AND r.name = 'Común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Paroaria coronata' AND r.name = 'Común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Paroaria coronata' AND r.name = 'Común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Vanellus chilensis' AND r.name = 'Común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Vanellus chilensis' AND r.name = 'Común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Turdus rufiventris' AND r.name = 'Común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Turdus rufiventris' AND r.name = 'Común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Cathartes aura' AND r.name = 'Común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Cathartes aura' AND r.name = 'Común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Chauna torquata' AND r.name = 'Poco común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Chauna torquata' AND r.name = 'Poco común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Phoenicopterus chilensis' AND r.name = 'Poco común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Phoenicopterus chilensis' AND r.name = 'Poco común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Thraupis sayaca' AND r.name = 'Poco común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Thraupis sayaca' AND r.name = 'Poco común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Pipraeidea bonariensis' AND r.name = 'Poco común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Pipraeidea bonariensis' AND r.name = 'Poco común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Cygnus melancoryphus' AND r.name = 'Poco común'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Cygnus melancoryphus' AND r.name = 'Poco común' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Rhea americana' AND r.name = 'Raro'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Rhea americana' AND r.name = 'Raro' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Rhea pennata' AND r.name = 'Raro'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Rhea pennata' AND r.name = 'Raro' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Ramphastos toco' AND r.name = 'Raro'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Ramphastos toco' AND r.name = 'Raro' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Cyanocompsa brissonii' AND r.name = 'Raro'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Cyanocompsa brissonii' AND r.name = 'Raro' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Buteogallus coronatus' AND r.name = 'Épico'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Buteogallus coronatus' AND r.name = 'Épico' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Gubernatrix cristata' AND r.name = 'Legendario'
-ON CONFLICT DO NOTHING;
+WHERE b.name = 'Gubernatrix cristata' AND r.name = 'Legendario' ON CONFLICT DO NOTHING;
 
--- ====== ASOCIACIONES: BIRD -> COLORS ======
+-- Asociaciones BIRD -> COLORS
 INSERT INTO bird_color (bird_id, color_id)
 SELECT b.bird_id, c.color_id FROM birds b, colors c
 WHERE b.name = 'Furnarius rufus' AND c.name IN ('Marrón','Canela','Ocre')
@@ -536,56 +534,6 @@ SELECT b.bird_id, c.color_id FROM birds b, colors c
 WHERE b.name = 'Thraupis sayaca' AND c.name IN ('Celeste','Gris')
 ON CONFLICT DO NOTHING;
 
--- ====== SEED: SIGHTINGS ======
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.594900, -58.375700, 'Plaza San Martín, Buenos Aires (CABA)', NOW() - interval '10 days',
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'lucas@example.com' AND b.name = 'Furnarius rufus'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.617000, -58.360000, 'Reserva Ecológica Costanera Sur, CABA', NOW() - interval '7 days',
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'maria@example.com' AND b.name = 'Phoenicopterus chilensis'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -35.577000, -58.016000, 'Laguna de Chascomús, Buenos Aires', NOW() - interval '5 days',
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'juan@example.com' AND b.name = 'Cygnus melancoryphus'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -32.890000, -68.865000, 'Parque General San Martín, Mendoza', NOW() - interval '3 days',
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'sofia@example.com' AND b.name = 'Vanellus chilensis'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -35.240000, -57.329000, 'Reserva El Destino, Magdalena (Bs As)', NOW() - interval '1 day',
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'martin@example.com' AND b.name = 'Buteogallus coronatus'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.587300, -58.416500, 'Jardín Botánico Carlos Thays, CABA', NOW() - interval '2 days',
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.608000, -58.371000, 'Plaza de Mayo, CABA', NOW(),
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris'
-ON CONFLICT DO NOTHING;
-
 -- Completa rarezas faltantes con "Común" por default
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id
@@ -595,7 +543,50 @@ LEFT JOIN bird_rarity br ON br.bird_id = b.bird_id
 WHERE br.bird_id IS NULL
 ON CONFLICT DO NOTHING;
 
--- ====== SEED: MIGRATORY WAVES (EJEMPLOS) ======
+-- ---------- MIGRATORY WAVES ----------
+CREATE TABLE IF NOT EXISTS migratory_waves (
+    bird_id     UUID     NOT NULL,
+    month       SMALLINT NOT NULL CHECK (month BETWEEN 1 AND 12),
+    province_id UUID     NOT NULL,
+
+    CONSTRAINT migratory_waves_pk PRIMARY KEY (bird_id, month, province_id),
+    CONSTRAINT fk_wave_bird     FOREIGN KEY (bird_id)     REFERENCES birds(bird_id)     ON DELETE CASCADE,
+    CONSTRAINT fk_wave_province FOREIGN KEY (province_id) REFERENCES provinces(province_id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_wave_bird_month   ON migratory_waves (bird_id, month);
+CREATE INDEX IF NOT EXISTS idx_wave_month        ON migratory_waves (month);
+CREATE INDEX IF NOT EXISTS idx_wave_province     ON migratory_waves (province_id);
+
+-- Seeds de provincias
+INSERT INTO provinces (name) VALUES
+  ('Buenos Aires'),
+  ('Ciudad Autónoma de Buenos Aires'),
+  ('Catamarca'),
+  ('Chaco'),
+  ('Chubut'),
+  ('Córdoba'),
+  ('Corrientes'),
+  ('Entre Ríos'),
+  ('Formosa'),
+  ('Jujuy'),
+  ('La Pampa'),
+  ('La Rioja'),
+  ('Mendoza'),
+  ('Misiones'),
+  ('Neuquén'),
+  ('Río Negro'),
+  ('Salta'),
+  ('San Juan'),
+  ('San Luis'),
+  ('Santa Cruz'),
+  ('Santa Fe'),
+  ('Santiago del Estero'),
+  ('Tierra del Fuego'),
+  ('Tucumán')
+ON CONFLICT (name) DO NOTHING;
+
+-- Waves: ejemplos
 WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Paroaria coronata'),
      p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires'),
      p_ju AS (SELECT province_id FROM provinces WHERE name = 'Jujuy'),
@@ -617,13 +608,8 @@ UNION ALL
 SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
 ON CONFLICT DO NOTHING;
 
-
-
--- =========================================
--- SIGHTINGS de prueba para job de limpieza
--- =========================================
-
--- ---------- Cluster A: Turdus rufiventris (Zorzal colorado) cerca del Obelisco ----------
+-- ---------- SIGHTINGS de prueba / clusters ----------
+-- Cluster A: Zorzal colorado cerca del Obelisco
 INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -34.603700, -58.381600, 'Obelisco CABA', NOW() - interval '9 hours', u.user_id, b.bird_id
 FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
@@ -652,9 +638,7 @@ FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Turdus ru
 INSERT INTO sightings SELECT gen_random_uuid(), -34.603830, -58.381560, 'Obelisco CABA', NOW() - interval '1 hours', u.user_id, b.bird_id
 FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
 
--- Resultado esperado del job en este cluster: conservar 5 más recientes, borrar el resto.
-
--- ---------- Cluster B: Vanellus chilensis (Tero) cerca de Parque Centenario ----------
+-- Cluster B: Vanellus chilensis cerca de Parque Centenario
 INSERT INTO sightings SELECT gen_random_uuid(), -34.606500, -58.436000, 'Parque Centenario', NOW() - interval '12 hours', u.user_id, b.bird_id
 FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
 
@@ -676,7 +660,7 @@ FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Vanellus
 INSERT INTO sightings SELECT gen_random_uuid(), -34.606580, -58.436090, 'Parque Centenario', NOW() - interval '6 hours', u.user_id, b.bird_id
 FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
 
--- ---------- Cluster C: Paroaria coronata (Cardenal común) cerca del Jardín Botánico ----------
+-- Cluster C: Paroaria coronata cerca del Jardín Botánico
 INSERT INTO sightings SELECT gen_random_uuid(), -34.587300, -58.416500, 'Jardín Botánico', NOW() - interval '20 hours', u.user_id, b.bird_id
 FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
 

@@ -8,7 +8,7 @@ spring:
     # driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     show-sql: true
 
 server:
@@ -38,3 +38,6 @@ minio:
     bucket: birds
     profile-object-name: profile
 
+jwt:
+  secret: ${JWT_SECRET:change_me_to_a_very_long_random_secret_32chars_min}
+  expiration: ${JWT_EXPIRATION_MS:86400000}
