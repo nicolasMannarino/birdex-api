@@ -1,6 +1,8 @@
 package com.birdex.entity;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,4 +41,19 @@ public interface BirdSummary {
 
     @Schema(description = "Colores dominantes", example = "[\"Gris\",\"Blanco\"]")
     List<String> getColors();
+
+    @Schema(description = "Zonas de aparición")
+    List<ZonePoint> getZones();
+
+    @Schema(name = "ZonePoint", description = "Zona de aparición con coordenadas")
+    interface ZonePoint {
+        @Schema(description = "Nombre de la zona", example = "Buenos Aires")
+        String name();
+
+        @Schema(description = "Latitud", example = "-34.921450")
+        BigDecimal latitude();
+
+        @Schema(description = "Longitud", example = "-57.954530")
+        BigDecimal longitude();
+    }
 }

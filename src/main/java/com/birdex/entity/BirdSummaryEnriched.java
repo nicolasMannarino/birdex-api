@@ -1,8 +1,11 @@
 package com.birdex.entity;
 
+import com.birdex.dto.ZonePointDto;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Getter
@@ -18,6 +21,7 @@ public class BirdSummaryEnriched implements BirdSummary {
     private final Integer weightMaxG;
     private final String rarity;
     private final List<String> colors;
+    private final List<ZonePoint> zones;
 
     public BirdSummaryEnriched(BirdSummary src, String imageDataUri) {
         this.birdId = src.getBirdId();
@@ -31,5 +35,13 @@ public class BirdSummaryEnriched implements BirdSummary {
         this.weightMaxG = src.getWeightMaxG();
         this.rarity = src.getRarity();
         this.colors = src.getColors();
+        List<ZonePoint> srcZones = src.getZones();
+        this.zones = (srcZones == null) ? List.of()
+                : srcZones.stream()
+                .filter(Objects::nonNull)
+                .map(z -> (ZonePoint) new ZonePointDto(z.name(), z.latitude(), z.longitude()))
+                .toList();
     }
+
+
 }

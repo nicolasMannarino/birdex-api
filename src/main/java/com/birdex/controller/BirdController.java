@@ -64,6 +64,7 @@ public class BirdController {
         return ResponseEntity.ok(response);
     }
 
+    @Deprecated
     @GetMapping(value = "/description/{commonName}", produces = MediaType.TEXT_PLAIN_VALUE)
     @Operation(
             summary = "Descripción por nombre común",

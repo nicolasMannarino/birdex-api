@@ -21,7 +21,7 @@ import java.math.BigDecimal;
         name = "sightings",
         indexes = {
                 @Index(name = "idx_sightings_lat_lon", columnList = "latitude, longitude"),
-                @Index(name = "idx_sightings_datetime", columnList = "\"dateTime\""),
+                @Index(name = "idx_sightings_datetime", columnList = "date_time"),
                 @Index(name = "idx_sightings_user", columnList = "user_id"),
                 @Index(name = "idx_sightings_bird", columnList = "bird_id")
         }

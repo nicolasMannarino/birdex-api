@@ -50,4 +50,21 @@ public class BirdEntity {
 
     @OneToMany(mappedBy = "bird", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<MigratoryWaveEntity> migratoryWaves = new HashSet<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "bird_zone",
+            joinColumns = @JoinColumn(name = "bird_id"),
+            inverseJoinColumns = @JoinColumn(name = "zone_id")
+    )
+    @ToString.Exclude
+    private Set<ZoneEntity> zones = new HashSet<>();
+
+    public void addZone(ZoneEntity zone) {
+        if (zone != null) zones.add(zone);
+    }
+
+    public void removeZone(ZoneEntity zone) {
+        if (zone != null) zones.remove(zone);
+    }
 }

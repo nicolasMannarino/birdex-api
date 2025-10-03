@@ -20,6 +20,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import com.birdex.dto.ZonePointDto;
+import com.birdex.repository.BirdRepository.ZonePointRow;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -56,6 +58,18 @@ public class BirdService {
         dto.setRarity(rarity);
 
         dto.setColors(birdColorRepository.findColorNamesByBirdName(entity.getName()));
+
+        dto.setZones(
+                entity.getZones() == null ? List.of() :
+                        entity.getZones().stream()
+                                .map(z -> ZonePointDto.builder()
+                                        .name(z.getName())
+                                        .latitude(z.getLatitude())
+                                        .longitude(z.getLongitude())
+                                        .build())
+                                .toList()
+        );
+
 
         return dto;
     }
@@ -121,22 +135,33 @@ public class BirdService {
 
         List<BirdListItem> content = page.getContent().stream()
                 .map(it -> {
-                    String thumb  = bucketService.getBirdProfilePresignedUrl(it.getName(), BirdImageSize.THUMB_256, Duration.ofHours(24));
+                    String thumb = bucketService.getBirdProfilePresignedUrl(it.getName(), BirdImageSize.THUMB_256, Duration.ofHours(24));
                     String medium = bucketService.getBirdProfilePresignedUrl(it.getName(), BirdImageSize.MEDIUM_600, Duration.ofHours(24));
-                    return new BirdListItem(
-                            it.getBirdId(),
-                            it.getName(),
-                            it.getCommonName(),
-                            it.getSize(),
-                            it.getLengthMinMm(),
-                            it.getLengthMaxMm(),
-                            it.getWeightMinG(),
-                            it.getWeightMaxG(),
-                            it.getRarity(),
-                            it.getColors(),
-                            thumb,
-                            medium
-                    );
+
+                    List<ZonePointDto> zones = birdRepository.findZonesForBird(it.getBirdId())
+                            .stream()
+                            .map(row -> ZonePointDto.builder()
+                                    .name(row.getName())
+                                    .latitude(row.getLatitude())
+                                    .longitude(row.getLongitude())
+                                    .build())
+                            .toList();
+
+                    return BirdListItem.builder()
+                            .birdId(it.getBirdId())
+                            .name(it.getName())
+                            .commonName(it.getCommonName())
+                            .size(it.getSize())
+                            .lengthMinMm(it.getLengthMinMm())
+                            .lengthMaxMm(it.getLengthMaxMm())
+                            .weightMinG(it.getWeightMinG())
+                            .weightMaxG(it.getWeightMaxG())
+                            .rarity(it.getRarity())
+                            .colors(it.getColors())
+                            .thumbUrl(thumb)
+                            .imageUrl(medium)
+                            .zones(zones)
+                            .build();
                 })
                 .toList();
 

@@ -54,6 +54,10 @@ public class BirdDto {
     @Schema(name = "Measurements", description = "Numeric length and weight ranges (mm/g)")
     private Measurements sizeDetails;
 
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Schema(description = "Zones (name + lat/lon)")
+    private List<ZonePointDto> zones;
+
     @Data @NoArgsConstructor @AllArgsConstructor @Builder
     @Schema(name = "Measurements", description = "Length (mm) and weight (g) ranges")
     public static class Measurements {

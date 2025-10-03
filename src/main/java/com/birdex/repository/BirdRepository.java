@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,7 +20,8 @@ public interface BirdRepository extends JpaRepository<BirdEntity, UUID>, JpaSpec
 
     Optional<BirdEntity> findFirstByCommonNameContainingIgnoreCase(String commonName);
 
-    @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province"})
+    // ✅ incluir "zones" en el grafo para evitar N+1
+    @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province", "zones"})
     Optional<BirdEntity> findFirstByNameContainingIgnoreCase(String name);
 
     List<BirdNamesView> findAllProjectedBy();
@@ -30,6 +32,7 @@ public interface BirdRepository extends JpaRepository<BirdEntity, UUID>, JpaSpec
 
     Page<BirdNamesView> findAllProjectedBy(Pageable pageable);
 
+    // ⚠️ Mantener: esta query no puede poblar la lista de zonas directamente
     @Query(
             value = """
         select
@@ -93,14 +96,14 @@ public interface BirdRepository extends JpaRepository<BirdEntity, UUID>, JpaSpec
     );
 
     @Override
-    @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province"})
+    @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province", "zones"}) // ✅
     Optional<BirdEntity> findById(UUID id);
 
     @Override
-    @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province"})
+    @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province", "zones"}) // ✅
     List<BirdEntity> findAll();
 
-    @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province"})
+    @EntityGraph(attributePaths = {"migratoryWaves", "migratoryWaves.province", "zones"}) // ✅
     Optional<BirdEntity> findByName(String name);
 
     @Query("""
@@ -122,4 +125,25 @@ public interface BirdRepository extends JpaRepository<BirdEntity, UUID>, JpaSpec
            or lower(function('unaccent', b.commonName)) = lower(function('unaccent', :q))
     """)
     boolean existsNormalized(@Param("q") String q);
+
+    /* ===============================
+       NUEVO: zonas por ave (auxiliar)
+       =============================== */
+
+    // Proyección simple para mapear name/lat/lon
+    interface ZonePointRow {
+        String getName();
+        BigDecimal getLatitude();
+        BigDecimal getLongitude();
+    }
+
+    @Query(value = """
+            select z.name as name, z.latitude as latitude, z.longitude as longitude
+            from zones z
+            join bird_zone bz on bz.zone_id = z.zone_id
+            where bz.bird_id = :birdId
+            order by z.name
+            """,
+            nativeQuery = true)
+    List<ZonePointRow> findZonesForBird(@Param("birdId") UUID birdId);
 }

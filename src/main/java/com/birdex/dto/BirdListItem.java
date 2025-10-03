@@ -1,5 +1,6 @@
 package com.birdex.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -51,6 +52,10 @@ public class BirdListItem {
 
     @Schema(description = "URL imagen media (cacheable)", example = "https://cdn.birdex.com/birds/turdus-rufiventris/profile_600.webp")
     private String imageUrl;
+
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Schema(description = "Spawn zone (name + lat/lon)")
+    private List<ZonePointDto> zones;
 
 
 }
