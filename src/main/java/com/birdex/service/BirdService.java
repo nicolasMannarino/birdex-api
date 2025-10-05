@@ -133,4 +133,9 @@ public class BirdService {
     private Integer cleanPositive(Integer v) {
         return (v != null && v > 0) ? v : null;
     }
+
+    public String getRarityForBird(BirdEntity bird) {
+        return birdRarityRepository.findRarityNameByBirdName(bird.getName())
+                .orElse("COMMON"); // valor por defecto si no tiene rareza asignada
+    }
 }

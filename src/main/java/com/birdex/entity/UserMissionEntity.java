@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -18,6 +19,33 @@ import java.util.UUID;
                 @Index(name = "idx_user_missions_mission", columnList = "mission_id")
         })
 public class UserMissionEntity {
+
+
+        public UserMissionEntity(UserEntity user, MissionEntity mission, int initialProgress, boolean completed) {
+                this.user = user;
+                this.mission = mission;
+                this.progress = new HashMap<>();
+                this.progress.put("count", initialProgress);
+                this.completed = completed;
+        }
+
+        public int getProgressValue() {
+                if (progress == null) return 0;
+                Object val = progress.get("count");
+                if (val instanceof Number) {
+                return ((Number) val).intValue();
+                }
+                return 0;
+        }
+
+        public void setProgressValue(int value) {
+                if (progress == null) {
+                progress = new HashMap<>();
+                } else if (!(progress instanceof HashMap)) {
+                progress = new HashMap<>(progress); // por si venía como Map inmutable
+                }
+                progress.put("count", value);
+        }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -35,7 +63,7 @@ public class UserMissionEntity {
     @Convert(converter = JsonbConverter.class)
     @Column(name = "progress", columnDefinition = "jsonb")
     @Builder.Default
-    private Map<String, Object> progress = Map.of();
+    private Map<String, Object> progress = new HashMap<>();
 
     @Column(name = "completed", nullable = false)
     @Builder.Default

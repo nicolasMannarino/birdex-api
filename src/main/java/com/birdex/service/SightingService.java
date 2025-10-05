@@ -36,6 +36,9 @@ public class SightingService {
     private final BirdRepository birdRepository;
     private final BucketService bucketService;
     private final BirdRarityRepository birdRarityRepository;
+    private final PointsService pointsService;
+    private final MissionService missionService;       
+    private final AchievementService achievementService; 
 
     public void registerSighting(SightingRequest request) {
         UserEntity userEntity = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> {
@@ -79,6 +82,16 @@ public class SightingService {
         String fileUrl = bucketService.upload(key, data, mimeType);
 
         sightingRepository.save(sightingEntity);
+
+        int pointsAdded = pointsService.addPointsForSighting(userEntity, birdEntity);
+        log.info("Se sumaron {} puntos al usuario {} por avistamiento de {}",
+                pointsAdded, userEntity.getEmail(), birdEntity.getName());
+
+        
+        missionService.checkAndUpdateMissions(userEntity, birdEntity, sightingEntity);
+
+        
+        achievementService.checkAndUpdateAchievements(userEntity, birdEntity, sightingEntity);
     }
 
     public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest sightingImageRequest) {

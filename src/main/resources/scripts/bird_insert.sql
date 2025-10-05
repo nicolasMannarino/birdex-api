@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS user_achievements (
     user_achievement_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     achievement_id UUID NOT NULL REFERENCES achievements(achievement_id) ON DELETE CASCADE,
+    progress JSONB DEFAULT '{}'::jsonb,
     obtained_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -610,4 +611,26 @@ INSERT INTO migratory_waves (bird_id, month, province_id)
 SELECT b.bird_id, 3, p_mi.province_id FROM bird b, p_mi
 UNION ALL
 SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
+ON CONFLICT DO NOTHING;
+
+--insercion de misiones por usuario
+INSERT INTO user_missions (user_id, mission_id, progress, completed)
+SELECT 
+    u.user_id,
+    m.mission_id,
+    '{}'::jsonb AS progress,
+    FALSE AS completed
+FROM users u
+CROSS JOIN missions m
+ON CONFLICT DO NOTHING;
+
+--insercion de logros por usuario
+INSERT INTO user_achievements (user_id, achievement_id, progress, obtained_at)
+SELECT 
+    u.user_id,
+    a.achievement_id,
+    '{}'::jsonb AS progress,
+    NULL AS obtained_at
+FROM users u
+CROSS JOIN achievements a
 ON CONFLICT DO NOTHING;
