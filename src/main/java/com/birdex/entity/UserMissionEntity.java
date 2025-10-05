@@ -3,6 +3,7 @@ package com.birdex.entity;
 import com.birdex.utils.JsonbConverter;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnTransformer;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -62,7 +63,7 @@ public class UserMissionEntity {
 
     @Convert(converter = JsonbConverter.class)
     @Column(name = "progress", columnDefinition = "jsonb")
-    @Builder.Default
+    @ColumnTransformer(write = "?::jsonb")
     private Map<String, Object> progress = new HashMap<>();
 
     @Column(name = "completed", nullable = false)

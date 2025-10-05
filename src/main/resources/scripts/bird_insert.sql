@@ -186,17 +186,6 @@ VALUES
 ('Coleccionista', 'Registrá 100 avistamientos en total', '{"total_sightings":100}', '/icons/coleccionista.png')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO rarity_points (rarity_id, points)
-SELECT r.rarity_id, CASE r.name
-    WHEN 'Común' THEN 5
-    WHEN 'Poco común' THEN 10
-    WHEN 'Raro' THEN 20
-    WHEN 'Épico' THEN 40
-    WHEN 'Legendario' THEN 80
-END
-FROM rarities r
-ON CONFLICT (rarity_id) DO NOTHING;
-
 INSERT INTO provinces (name) VALUES
   ('Buenos Aires'),
   ('Ciudad Autónoma de Buenos Aires'),
@@ -247,6 +236,17 @@ INSERT INTO rarities (rarity_id, name) VALUES
   (gen_random_uuid(), 'Épico'),
   (gen_random_uuid(), 'Legendario')
 ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO rarity_points (rarity_id, points)
+SELECT r.rarity_id, CASE r.name
+    WHEN 'Común' THEN 5
+    WHEN 'Poco común' THEN 10
+    WHEN 'Raro' THEN 20
+    WHEN 'Épico' THEN 40
+    WHEN 'Legendario' THEN 80
+END
+FROM rarities r
+ON CONFLICT (rarity_id) DO NOTHING;
 
 -- ====== SEED: COLORES ======
 INSERT INTO colors (color_id, name) VALUES

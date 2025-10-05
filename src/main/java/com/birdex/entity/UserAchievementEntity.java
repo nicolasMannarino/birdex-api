@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.birdex.utils.JsonbConverter;
+import org.hibernate.annotations.ColumnTransformer;
 
 @Entity
 @Getter @Setter
@@ -36,8 +37,8 @@ public class UserAchievementEntity {
 
     @Convert(converter = JsonbConverter.class)
     @Column(name = "progress", columnDefinition = "jsonb")
-    @Builder.Default
-    private Map<String, Object> progress = new java.util.HashMap<>();
+    @ColumnTransformer(write = "?::jsonb")
+    private Map<String, Object> progress = new HashMap<>();
 
     @Column(name = "obtained_at")
     @Builder.Default
