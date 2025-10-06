@@ -18,11 +18,14 @@ public class UserEntity {
     @Column(name = "user_id")
     private UUID userId;
 
-    @Column(name = "username", nullable = false)
+    @Column(name = "username", nullable = false, unique = true)
     private String username;
 
-    @Column(name = "password", nullable = false)
-    private String password;
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
+    @Column(nullable = false)
+    private String role; // "USER" | "ADMIN"
 
     @Column(name = "email", nullable = false, unique = true)
     private String email;
