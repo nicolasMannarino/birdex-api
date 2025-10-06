@@ -75,7 +75,7 @@ public class JwtUtil {
     private Claims extractAllClaims(String token) {
         try {
             return Jwts.parser()
-                    .verifyWith(key)          // <-- ahora acepta SecretKey
+                    .verifyWith(key)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
