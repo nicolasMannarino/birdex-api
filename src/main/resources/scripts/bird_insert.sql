@@ -974,7 +974,7 @@ GROUP BY b.bird_id, b.name, b.common_name;
 
 --insercion de misiones por usuario
 INSERT INTO user_missions (user_id, mission_id, progress, completed)
-SELECT 
+SELECT
     u.user_id,
     m.mission_id,
     '{}'::jsonb AS progress,
@@ -985,7 +985,7 @@ ON CONFLICT DO NOTHING;
 
 --insercion de logros por usuario
 INSERT INTO user_achievements (user_id, achievement_id, progress, obtained_at)
-SELECT 
+SELECT
     u.user_id,
     a.achievement_id,
     '{}'::jsonb AS progress,
