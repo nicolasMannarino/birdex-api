@@ -272,13 +272,6 @@ INSERT INTO colors (color_id, name) VALUES
   (gen_random_uuid(), 'Blanquecino')
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO users (user_id, username, password, email) VALUES
-  (gen_random_uuid(), 'lucas', 'pass123', 'lucas@example.com'),
-  (gen_random_uuid(), 'maria', 'pass123', 'maria@example.com'),
-  (gen_random_uuid(), 'juan', 'pass123', 'juan@example.com'),
-  (gen_random_uuid(), 'sofia', 'pass123', 'sofia@example.com'),
-  (gen_random_uuid(), 'martin', 'pass123', 'martin@example.com')
-ON CONFLICT (email) DO NOTHING;
 
 -- ====== MIGRATORY WAVES ======
 CREATE TABLE IF NOT EXISTS migratory_waves (
