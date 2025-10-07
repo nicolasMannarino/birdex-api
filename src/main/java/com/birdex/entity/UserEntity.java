@@ -3,6 +3,7 @@ package com.birdex.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -41,4 +42,5 @@ public class UserEntity {
     @Column(name = "level_name", nullable = false)
     @Builder.Default
     private String levelName = "Novato";
+
 }

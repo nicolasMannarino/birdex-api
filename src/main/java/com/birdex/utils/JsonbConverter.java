@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
+import org.postgresql.util.PGobject;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,8 +17,8 @@ public class JsonbConverter implements AttributeConverter<Map<String, Object>, S
 
     @Override
     public String convertToDatabaseColumn(Map<String, Object> attribute) {
+        if (attribute == null) return null;
         try {
-            if (attribute == null) return "{}";
             return MAPPER.writeValueAsString(attribute);
         } catch (Exception e) {
             throw new IllegalArgumentException("Error serializing JSONB", e);
@@ -25,8 +27,8 @@ public class JsonbConverter implements AttributeConverter<Map<String, Object>, S
 
     @Override
     public Map<String, Object> convertToEntityAttribute(String dbData) {
+        if (dbData == null || dbData.isBlank()) return new HashMap<>();
         try {
-            if (dbData == null || dbData.isBlank()) return new HashMap<>();
             return MAPPER.readValue(dbData, TYPE);
         } catch (Exception e) {
             throw new IllegalArgumentException("Error deserializing JSONB", e);

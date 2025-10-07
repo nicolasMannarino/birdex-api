@@ -13,4 +13,5 @@ public interface UserMissionRepository extends JpaRepository<UserMissionEntity, 
     List<UserMissionEntity> findByUser(UserEntity user);
     List<UserMissionEntity> findByMission(MissionEntity mission);
     Optional<UserMissionEntity> findByUser_UserIdAndMission_MissionId(UUID userId, UUID missionId);
+    List<UserMissionEntity> findByUser_Email(String email);
 }
