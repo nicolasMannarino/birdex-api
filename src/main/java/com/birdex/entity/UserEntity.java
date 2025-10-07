@@ -3,12 +3,13 @@ package com.birdex.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 @Table(name = "users",
         uniqueConstraints = @UniqueConstraint(columnNames = "email"))
@@ -42,5 +43,16 @@ public class UserEntity {
     @Column(name = "level_name", nullable = false)
     @Builder.Default
     private String levelName = "Novato";
+
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @Column(name = "profile_photo_base64", columnDefinition = "TEXT")
+    private String profilePhotoBase64;
+
+
+    public void updateProfilePhotoBase64(String photo) {
+        this.profilePhotoBase64 = photo;
+    }
 
 }

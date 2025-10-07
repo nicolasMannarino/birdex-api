@@ -63,6 +63,16 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT users_username_uk UNIQUE (username)
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'users' AND column_name = 'profile_photo_base64'
+  ) THEN
+    ALTER TABLE users ADD COLUMN profile_photo_base64 TEXT;
+  END IF;
+END $$;
+
 -- Bloque de "autocuración" para instalaciones previas
 DO $$
 BEGIN

@@ -1,0 +1,8 @@
+package com.birdex.domain;
+
+import lombok.Data;
+
+@Data
+public class UserPhotoRequest {
+    private String photo;
+}
