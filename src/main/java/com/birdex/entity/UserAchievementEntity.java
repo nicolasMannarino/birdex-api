@@ -4,7 +4,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
+
+import com.birdex.utils.JsonbConverter;
+import org.hibernate.annotations.ColumnTransformer;
 
 @Entity
 @Getter @Setter
@@ -29,6 +34,11 @@ public class UserAchievementEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "achievement_id", nullable = false)
     private AchievementEntity achievement;
+
+    @Convert(converter = JsonbConverter.class)
+    @Column(name = "progress", columnDefinition = "jsonb")
+    @ColumnTransformer(write = "?::jsonb")
+    private Map<String, Object> progress = new HashMap<>();
 
     @Column(name = "obtained_at")
     @Builder.Default

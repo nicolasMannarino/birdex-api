@@ -37,6 +37,9 @@ public class SightingService {
     private final BirdRepository birdRepository;
     private final BucketService bucketService;
     private final BirdRarityRepository birdRarityRepository;
+    private final PointsService pointsService;
+    private final MissionService missionService;       
+    private final AchievementService achievementService; 
 
     private static final String SIGHTINGS_PREFIX = "sightings/";
     private static final String CACHE = "public, max-age=31536000, immutable";
@@ -90,6 +93,16 @@ public class SightingService {
         bucketService.uploadBirdObject(key, data, toContentType(mimeType), CACHE);
 
         sightingRepository.save(sightingEntity);
+
+        int pointsAdded = pointsService.addPointsForSighting(userEntity, birdEntity);
+        log.info("Se sumaron {} puntos al usuario {} por avistamiento de {}",
+                pointsAdded, userEntity.getEmail(), birdEntity.getName());
+
+        
+        missionService.checkAndUpdateMissions(userEntity, birdEntity, sightingEntity);
+
+        
+        achievementService.checkAndUpdateAchievements(userEntity, birdEntity, sightingEntity);
     }
 
     public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest req) {

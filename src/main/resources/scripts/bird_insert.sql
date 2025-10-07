@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS user_achievements (
     user_achievement_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     achievement_id UUID NOT NULL REFERENCES achievements(achievement_id) ON DELETE CASCADE,
+    progress JSONB DEFAULT '{}'::jsonb,
     obtained_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -245,6 +246,7 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 
+
 INSERT INTO rarities (rarity_id, name) VALUES
   (gen_random_uuid(), 'Común'),
   (gen_random_uuid(), 'Poco común'),
@@ -289,6 +291,7 @@ CREATE INDEX IF NOT EXISTS idx_wave_month        ON migratory_waves (month);
 CREATE INDEX IF NOT EXISTS idx_wave_province     ON migratory_waves (province_id);
 
 -- ====== SEED: PROVINCES ======
+
 INSERT INTO provinces (name) VALUES
   ('Buenos Aires'),
   ('Ciudad Autónoma de Buenos Aires'),
@@ -318,6 +321,7 @@ ON CONFLICT (name) DO NOTHING;
 
 -- ====== SEED: AVES (completo) ======
 
+
 -- USERS (hash BCrypt con pgcrypto + role)
 INSERT INTO users (user_id, username, password_hash, role, email)
 VALUES
@@ -326,7 +330,22 @@ VALUES
   (gen_random_uuid(), 'juan',   crypt('pass123', gen_salt('bf')), 'USER', 'juan@example.com'),
   (gen_random_uuid(), 'sofia',  crypt('pass123', gen_salt('bf')), 'USER', 'sofia@example.com'),
   (gen_random_uuid(), 'martin', crypt('pass123', gen_salt('bf')), 'USER', 'martin@example.com')
-ON CONFLICT (email) DO NOTHING;
+  ON CONFLICT (email) DO NOTHING;
+
+
+
+INSERT INTO rarity_points (rarity_id, points)
+SELECT r.rarity_id, CASE r.name
+    WHEN 'Común' THEN 5
+    WHEN 'Poco común' THEN 10
+    WHEN 'Raro' THEN 20
+    WHEN 'Épico' THEN 40
+    WHEN 'Legendario' THEN 80
+END
+FROM rarities r
+ON CONFLICT (rarity_id) DO NOTHING;
+
+
 
 -- BIRDS (con rangos numéricos)
 INSERT INTO birds (bird_id, name, common_name, size, description, characteristics, image,
@@ -684,6 +703,7 @@ SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
 ON CONFLICT DO NOTHING;
 
 
+
 INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
 SELECT gen_random_uuid(), -34.603700, -58.381600, 'Obelisco CABA', NOW() - interval '9 hours', u.user_id, b.bird_id
 FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
@@ -951,3 +971,26 @@ GROUP BY b.bird_id, b.name, b.common_name;
 -- Ejemplos:
 -- SELECT zonas_json FROM bird_zones_json WHERE scientific_name = 'Paroaria coronata';
 -- SELECT zonas_json FROM bird_zones_json WHERE bird_id = '<uuid>';
+
+--insercion de misiones por usuario
+INSERT INTO user_missions (user_id, mission_id, progress, completed)
+SELECT
+    u.user_id,
+    m.mission_id,
+    '{}'::jsonb AS progress,
+    FALSE AS completed
+FROM users u
+CROSS JOIN missions m
+ON CONFLICT DO NOTHING;
+
+--insercion de logros por usuario
+INSERT INTO user_achievements (user_id, achievement_id, progress, obtained_at)
+SELECT
+    u.user_id,
+    a.achievement_id,
+    '{}'::jsonb AS progress,
+    NULL AS obtained_at
+FROM users u
+CROSS JOIN achievements a
+ON CONFLICT DO NOTHING;
+
