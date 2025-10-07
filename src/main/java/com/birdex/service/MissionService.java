@@ -9,6 +9,9 @@ import com.birdex.repository.UserMissionRepository;
 import com.birdex.repository.BirdRepository;
 import com.birdex.repository.MissionRepository;
 import lombok.RequiredArgsConstructor;
+import com.birdex.dto.UserMissionDto;
+import com.birdex.mapper.UserMissionMapper;
+
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -116,6 +119,11 @@ public class MissionService {
             }
         }
         return true;
+    }
+
+    public List<UserMissionDto> getMissionsByUserEmail(String email) {
+        var userMissions = userMissionRepository.findByUser_Email(email);
+        return UserMissionMapper.toDtoList(userMissions);
     }
 }
 

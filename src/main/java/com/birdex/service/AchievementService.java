@@ -1,8 +1,12 @@
 package com.birdex.service;
 
+import com.birdex.dto.UserAchievementDto;
 import com.birdex.entity.*;
+import com.birdex.mapper.UserAchievementMapper;
 import com.birdex.repository.AchievementRepository;
 import com.birdex.repository.UserAchievementRepository;
+import com.birdex.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +22,7 @@ public class AchievementService {
     private final UserAchievementRepository userAchievementRepository;
     private final UserService userService;
     private final BirdService birdService;
+    private final UserRepository userRepository;
 
     @Transactional
     public void checkAndUpdateAchievements(UserEntity user, BirdEntity bird, SightingEntity sighting) {
@@ -141,5 +146,13 @@ public class AchievementService {
             }
         }
         return true;
+    }
+
+    public List<UserAchievementDto> getAchievementsByUserEmail(String email) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con email: " + email));
+
+        var userAchievements = userAchievementRepository.findByUser(user);
+        return UserAchievementMapper.toDtoList(userAchievements);
     }
 }
