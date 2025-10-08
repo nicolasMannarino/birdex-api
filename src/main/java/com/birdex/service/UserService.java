@@ -1,9 +1,11 @@
 package com.birdex.service;
 
 import com.birdex.domain.UserPhotoRequest;
+import com.birdex.domain.UsernameRequest;
 import com.birdex.dto.SightingDto;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
+import com.birdex.exception.UserAlreadyExistsException;
 import com.birdex.exception.UserNotFoundException;
 import com.birdex.mapper.SightingMapper;
 import com.birdex.repository.SightingRepository;
@@ -42,6 +44,25 @@ public class UserService {
         //some validations??
 
         user.updateProfilePhotoBase64(request.getPhoto());
+        userRepository.save(user);
         log.info("Profile photo updated.");
+    }
+
+    public void updateUsername(String email, UsernameRequest request) {
+        log.info("Searching user with email: {}", email);
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException(MSG_USER_NOT_FOUND_BY_EMAIL));
+
+        log.info("User founded. - {}", email);
+
+        Optional<UserEntity> existingUser = userRepository.findByUsername(request.getNewUsername());
+
+        if (existingUser.isPresent()) {
+            throw new UserAlreadyExistsException("Username not available");
+        }
+
+        user.updateUsername(request.getNewUsername());
+        userRepository.save(user);
+        log.info("Username updated.");
     }
 }

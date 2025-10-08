@@ -55,4 +55,8 @@ public class UserEntity {
         this.profilePhotoBase64 = photo;
     }
 
+    public void updateUsername(String newName) {
+        this.username = newName;
+    }
+
 }

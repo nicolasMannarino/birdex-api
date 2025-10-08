@@ -1,6 +1,7 @@
 package com.birdex.controller;
 
 import com.birdex.domain.UserPhotoRequest;
+import com.birdex.domain.UsernameRequest;
 import com.birdex.dto.SightingDto;
 import com.birdex.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,12 @@ public class UserController {
     @PatchMapping("/photo/{email}")
     public ResponseEntity<Void> updatePhoto(@PathVariable String email, @RequestBody UserPhotoRequest request) {
         userService.updatePhoto(email, request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/username/{email}")
+    public ResponseEntity<Void> updateUsername(@PathVariable String email, @RequestBody UsernameRequest request) {
+        userService.updateUsername(email, request);
         return ResponseEntity.ok().build();
     }
 }
