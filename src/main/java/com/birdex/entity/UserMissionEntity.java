@@ -70,6 +70,10 @@ public class UserMissionEntity {
     @Builder.Default
     private Boolean completed = false;
 
+    @Column(name = "claimed", nullable = false)
+    @Builder.Default
+    private Boolean claimed = false;
+
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 }

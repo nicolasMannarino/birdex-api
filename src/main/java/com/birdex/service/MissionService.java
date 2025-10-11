@@ -6,7 +6,9 @@ import com.birdex.entity.UserMissionEntity;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
 import com.birdex.repository.UserMissionRepository;
+import com.birdex.repository.UserRepository;
 import com.birdex.repository.BirdRepository;
+import com.birdex.repository.LevelRepository;
 import com.birdex.repository.MissionRepository;
 import lombok.RequiredArgsConstructor;
 import com.birdex.dto.UserMissionDto;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +30,9 @@ public class MissionService {
     private final MissionRepository missionRepository;
     private final UserMissionRepository userMissionRepository;
     private final BirdService birdService;
+    private final UserRepository userRepository;
+    private final PointsService pointsService;
+    private final LevelRepository levelRepository;
 
     @Transactional
     public void checkAndUpdateMissions(UserEntity user, BirdEntity bird, SightingEntity sighting) {
@@ -125,5 +131,57 @@ public class MissionService {
         var userMissions = userMissionRepository.findByUser_Email(email);
         return UserMissionMapper.toDtoList(userMissions);
     }
+
+    @Transactional
+    public void claimMissionReward(UUID userMissionId) {
+        var userMissionOpt = userMissionRepository.findByUserMissionId(userMissionId);
+
+        if (userMissionOpt.isEmpty()) {
+            throw new RuntimeException("No se encontró la misión para el usuario especificado");
+        }
+
+        UserMissionEntity userMission = userMissionOpt.get();
+
+        if (!Boolean.TRUE.equals(userMission.getCompleted())) {
+            throw new RuntimeException("La misión aún no está completada");
+        }
+
+        if (Boolean.TRUE.equals(userMission.getClaimed())) {
+            throw new RuntimeException("La recompensa de esta misión ya fue reclamada");
+        }
+
+        // Marcar como reclamada
+        userMission.setClaimed(true);
+        userMissionRepository.save(userMission);
+
+        // Obtener usuario y misión
+        var user = userMission.getUser();
+        var mission = userMission.getMission();
+
+        // Sumar puntos de recompensa
+        int currentPoints = (user.getPoints() == null ? 0 : user.getPoints());
+        int newTotal = currentPoints + mission.getRewardPoints();
+        user.setPoints(newTotal);
+
+        // Verificar nivel alcanzable desde la tabla 'levels'
+        pointsServiceCheckLevelUp(user, newTotal);
+
+        userRepository.save(user);
+    }
+
+    /**
+     * Controla el nivel del usuario en base a su XP total.
+     */
+    private void pointsServiceCheckLevelUp(com.birdex.entity.UserEntity user, int newTotal) {
+        //var levelRepo = pointsService.getLevelRepository();
+        levelRepository.findTopByXpRequiredLessThanEqualOrderByLevelDesc(newTotal)
+                .ifPresent(level -> {
+                    if (level.getLevel() > user.getLevel()) {
+                        user.setLevel(level.getLevel());
+                        user.setLevelName(level.getName());
+                    }
+                });
+    }
+
 }
 

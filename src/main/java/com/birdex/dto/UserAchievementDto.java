@@ -15,6 +15,7 @@ public class UserAchievementDto {
     private String description;
     private Map<String, Object> criteria;
     private Map<String, Object> progress;
+    private boolean claimed;
     private String iconUrl;
     private LocalDateTime obtainedAt;
 }
