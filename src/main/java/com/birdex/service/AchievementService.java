@@ -155,4 +155,25 @@ public class AchievementService {
         var userAchievements = userAchievementRepository.findByUser(user);
         return UserAchievementMapper.toDtoList(userAchievements);
     }
+
+    @Transactional
+    public void claimAchievement(UUID userAchievementId) {
+        // Buscar el logro del usuario
+        UserAchievementEntity userAchievement = userAchievementRepository.findByUserAchievementId(userAchievementId)
+                .orElseThrow(() -> new RuntimeException("Logro de usuario no encontrado con ID: " + userAchievementId));
+
+        // Validar que el logro esté completado
+        if (userAchievement.getObtainedAt() == null) {
+            throw new RuntimeException("El logro aún no fue completado, no se puede reclamar.");
+        }
+
+        // Validar que no esté ya reclamado
+        if (Boolean.TRUE.equals(userAchievement.getClaimed())) {
+            throw new RuntimeException("El logro ya fue reclamado anteriormente.");
+        }
+
+        // Marcar como reclamado
+        userAchievement.setClaimed(true);
+        userAchievementRepository.save(userAchievement);
+    }
 }

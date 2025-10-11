@@ -25,7 +25,9 @@ public class UserMissionMapper {
                 .objective(mission != null ? mission.getObjective() : null)
                 .progress(entity.getProgress())
                 .completed(Boolean.TRUE.equals(entity.getCompleted()))
+                .claimed(Boolean.TRUE.equals(entity.getClaimed()))
                 .completedAt(entity.getCompletedAt())
+                .rewardPoints(mission != null ? mission.getRewardPoints() : null)
                 .build();
     }
 

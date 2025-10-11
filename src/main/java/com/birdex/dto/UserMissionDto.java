@@ -18,5 +18,7 @@ public class UserMissionDto {
     private Map<String, Object> objective;
     private Map<String, Object> progress;
     private boolean completed;
+    private boolean claimed;
     private LocalDateTime completedAt;
+    private Integer rewardPoints;
 }

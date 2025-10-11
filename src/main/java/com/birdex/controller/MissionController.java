@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/missions")
@@ -26,5 +28,13 @@ public class MissionController {
     public ResponseEntity<List<UserMissionDto>> getUserMissions(@PathVariable String email) {
         List<UserMissionDto> missions = missionService.getMissionsByUserEmail(email);
         return ResponseEntity.ok(missions);
+    }
+
+    @PostMapping("/claim")
+    public ResponseEntity<String> claimMissionReward(@RequestBody Map<String, String> request) {
+        UUID userMissionId = UUID.fromString(request.get("userMissionId"));
+
+        missionService.claimMissionReward(userMissionId);
+        return ResponseEntity.ok("Recompensa reclamada con éxito");
     }
 }

@@ -40,6 +40,10 @@ public class UserAchievementEntity {
     @ColumnTransformer(write = "?::jsonb")
     private Map<String, Object> progress = new HashMap<>();
 
+    @Column(name = "claimed", nullable = false)
+    @Builder.Default
+    private Boolean claimed = false;
+
     @Column(name = "obtained_at")
     @Builder.Default
     private LocalDateTime obtainedAt = LocalDateTime.now();

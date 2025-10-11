@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS user_missions (
     mission_id UUID NOT NULL REFERENCES missions(mission_id) ON DELETE CASCADE,
     progress JSONB DEFAULT '{}'::jsonb,
     completed BOOLEAN DEFAULT FALSE,
+    claimed BOOLEAN DEFAULT FALSE,
     completed_at TIMESTAMP
 );
 
@@ -199,6 +200,7 @@ CREATE TABLE IF NOT EXISTS user_achievements (
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     achievement_id UUID NOT NULL REFERENCES achievements(achievement_id) ON DELETE CASCADE,
     progress JSONB DEFAULT '{}'::jsonb,
+    claimed BOOLEAN DEFAULT FALSE,
     obtained_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -229,7 +231,13 @@ INSERT INTO missions (name, description, type, objective, reward_points)
 VALUES
 ('Primer Avistamiento del dia', 'Registra tu primer avistamiento del dia', 'daily', '{"sightings":1}', 10),
 ('Explorador Común', 'Registra 5 aves comunes', 'daily', '{"rarity":"Común","count":5}', 20),
-('Cazador de Raros', 'Encuentra 1 ave rara', 'unique', '{"rarity":"Raro","count":1}', 50)
+('Cazador de Raros', 'Encuentra 1 ave rara', 'unique', '{"rarity":"Raro","count":1}', 50),
+('Observador Persistente', 'Realiza 3 avistamientos en un mismo día', 'daily', '{"sightings":3}', 25),
+('Fanático del Raro', 'Encuentra 2 aves raras en la semana', 'weekly', '{"rarity":"Raro","count":2}', 70),
+('Semana Productiva', 'Realiza 10 avistamientos en la semana', 'weekly', '{"sightings":10}', 60),
+('Maestro del Vuelo', 'Registra 50 avistamientos totales', 'unique', '{"sightings":50}', 200),
+('Leyenda del Avistamiento', 'Registra 100 avistamientos totales', 'unique', '{"sightings":100}', 300),
+('Cazador de Legendarios', 'Encuentra un ave de rareza Legendaria', 'unique', '{"rarity":"Legendario","count":1}', 500)
 ON CONFLICT DO NOTHING;
 
 -- ACHIEVEMENTS
@@ -241,7 +249,6 @@ VALUES
 ('Naturalista', 'Registrá 10 especies diferentes', '{"unique_species":10}', '/icons/naturalista.png'),
 ('Épico', 'Avistá un ave de rareza Épico', '{"rarity":"Épico"}', '/icons/epico.png'),
 ('Maestro de Raros', 'Registrá 5 avistamientos de aves raras', '{"rarity":"Raro","count":5}', '/icons/maestro_raros.png'),
-('Madrugador', 'Hacé tu primer avistaje del día antes de las 08:00', '{"first_of_day_before_hour":8}', '/icons/madrugador.png'),
 ('Coleccionista', 'Registrá 100 avistamientos en total', '{"total_sightings":100}', '/icons/coleccionista.png')
 ON CONFLICT DO NOTHING;
 
@@ -993,4 +1000,97 @@ SELECT
 FROM users u
 CROSS JOIN achievements a
 ON CONFLICT DO NOTHING;
+
+
+
+---avance de logros y misiones para lucas@example.com
+-- 1️⃣ Obtener el ID del usuario
+DO $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    -- Obtener el ID del usuario
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'lucas@example.com';
+
+    IF v_user_id IS NULL THEN
+        RAISE NOTICE 'Usuario no encontrado: lucas@example.com';
+        RETURN;
+    END IF;
+
+    ----------------------------------------------------------------
+    -- 🕹️ MISIONES
+    ----------------------------------------------------------------
+
+    -- Primer Avistamiento del día → completada y reclamada
+    UPDATE user_missions
+    SET progress = '{"sightings":1}',
+        completed = TRUE,
+        claimed = TRUE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Primer Avistamiento del dia');
+
+    -- Explorador Común → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"rarity":"Común","count":3}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Explorador Común');
+
+    -- Maestro del Vuelo → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"sightings":30}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Maestro del Vuelo');
+
+    -- Cazador de Raros → completada, no reclamada
+    UPDATE user_missions
+    SET progress = '{"rarity":"Raro","count":1}',
+        completed = TRUE,
+        claimed = FALSE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Cazador de Raros');
+
+    -- Semana Productiva → progreso medio
+    UPDATE user_missions
+    SET progress = '{"sightings":6}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Semana Productiva');
+
+
+    ----------------------------------------------------------------
+    -- 🏆 LOGROS
+    ----------------------------------------------------------------
+
+    -- Novato → completo
+    UPDATE user_achievements
+    SET progress = '{"sightings":1}',
+        obtained_at = NOW()
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Novato');
+
+    -- Naturalista → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":6}',
+        obtained_at = NULL
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Naturalista');
+
+    -- Ornitólogo → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":25}',
+        obtained_at = NULL
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Ornitólogo');
+
+END $$;
 

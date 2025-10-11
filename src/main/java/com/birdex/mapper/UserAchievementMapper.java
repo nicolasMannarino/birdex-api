@@ -15,6 +15,7 @@ public class UserAchievementMapper {
                 .description(entity.getAchievement().getDescription())
                 .criteria(entity.getAchievement().getCriteria())
                 .progress(entity.getProgress())
+                .claimed(Boolean.TRUE.equals(entity.getClaimed()))
                 .iconUrl(entity.getAchievement().getIconUrl())
                 .obtainedAt(entity.getObtainedAt())
                 .build();

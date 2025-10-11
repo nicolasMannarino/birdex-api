@@ -65,4 +65,5 @@ public class PointsService {
 
         return points;
     }
+
 }
