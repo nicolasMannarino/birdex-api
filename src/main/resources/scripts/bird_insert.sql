@@ -63,6 +63,16 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT users_username_uk UNIQUE (username)
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'users' AND column_name = 'profile_photo_base64'
+  ) THEN
+    ALTER TABLE users ADD COLUMN profile_photo_base64 TEXT;
+  END IF;
+END $$;
+
 -- Bloque de "autocuración" para instalaciones previas
 DO $$
 BEGIN
@@ -326,11 +336,11 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO users (user_id, username, password_hash, role, email)
 VALUES
   (gen_random_uuid(), 'lucas',  crypt('pass123', gen_salt('bf')), 'USER', 'lucas@example.com'),
-  (gen_random_uuid(), 'maria',  crypt('pass123', gen_salt('bf')), 'USER', 'maria@example.com'),
-  (gen_random_uuid(), 'juan',   crypt('pass123', gen_salt('bf')), 'USER', 'juan@example.com'),
-  (gen_random_uuid(), 'sofia',  crypt('pass123', gen_salt('bf')), 'USER', 'sofia@example.com'),
-  (gen_random_uuid(), 'martin', crypt('pass123', gen_salt('bf')), 'USER', 'martin@example.com')
-  ON CONFLICT (email) DO NOTHING;
+  (gen_random_uuid(), 'maria',  crypt('pass123', gen_salt('bf')), 'USER',  'maria@example.com'),
+  (gen_random_uuid(), 'juan',   crypt('pass123', gen_salt('bf')), 'USER',  'juan@example.com'),
+  (gen_random_uuid(), 'sofia',  crypt('pass123', gen_salt('bf')), 'USER',  'sofia@example.com'),
+  (gen_random_uuid(), 'martin', crypt('pass123', gen_salt('bf')), 'ADMIN',  'martin@example.com')
+ON CONFLICT (email) DO NOTHING;
 
 
 

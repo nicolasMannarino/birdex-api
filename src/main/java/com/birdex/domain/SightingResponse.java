@@ -17,9 +17,6 @@ public class SightingResponse {
     @Schema(description = "Nombre común", example = "Zorzal colorado")
     private String commonName;
 
-    @Schema(description = "Foto de perfil del ave en base64", example = "data:image/jpeg;base64,/9j/4AAQ...")
-    private String profilePhotoBase64;
-
     @Schema(description = "Rareza (p. ej. Comun, Poco comun, Raro, Epico, Legendario)", example = "Comun")
     private String rarity;
 

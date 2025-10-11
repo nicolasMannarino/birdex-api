@@ -249,9 +249,6 @@ public class SightingService {
             String rarity = birdRarityRepository.findRarityNameByBirdName(dto.birdName()).orElse("");
             builder.rarity(rarity);
 
-            String profileBase64 = bucketService.getBirdProfileBase64(dto.birdName());
-            builder.profilePhotoBase64(profileBase64);
-
             list.add(builder.build());
         }
         return list;
