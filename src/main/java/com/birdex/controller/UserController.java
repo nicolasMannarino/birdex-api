@@ -1,6 +1,7 @@
 package com.birdex.controller;
 
 import com.birdex.domain.UserPhotoRequest;
+import com.birdex.domain.UserResponse;
 import com.birdex.domain.UsernameRequest;
 import com.birdex.dto.SightingDto;
 import com.birdex.service.UserService;
@@ -18,6 +19,11 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+
+    @GetMapping("/{username}")
+    public ResponseEntity<UserResponse> getUserInfo(@PathVariable String username){
+        return ResponseEntity.ok(userService.getUserInfo(username));
+    }
 
     @GetMapping("/sightings/{email}")
     public ResponseEntity<List<SightingDto>> getSightingsByUser(@PathVariable String email) {

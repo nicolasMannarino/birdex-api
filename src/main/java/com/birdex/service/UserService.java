@@ -1,6 +1,7 @@
 package com.birdex.service;
 
 import com.birdex.domain.UserPhotoRequest;
+import com.birdex.domain.UserResponse;
 import com.birdex.domain.UsernameRequest;
 import com.birdex.dto.SightingDto;
 import com.birdex.entity.SightingEntity;
@@ -26,6 +27,7 @@ public class UserService {
     private final UserRepository userRepository;
 
     private static final String MSG_USER_NOT_FOUND_BY_EMAIL = "No encontramos una cuenta registrada con ese correo.";
+    private static final String MSG_USER_NOT_FOUND_BY_USERNAME = "No encontramos una cuenta registrada con ese usuario.";
 
     public List<SightingDto> getSightingByEmail(String email) {
         return SightingMapper.toDtoList(sightingRepository.findByUserEmail(email));
@@ -64,5 +66,21 @@ public class UserService {
         user.updateUsername(request.getNewUsername());
         userRepository.save(user);
         log.info("Username updated.");
+    }
+
+    public UserResponse getUserInfo(String username){
+        log.info("Searching user with username: {}", username);
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(MSG_USER_NOT_FOUND_BY_EMAIL));
+
+        log.info("User founded. - {}", username);
+        return UserResponse.builder()
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .points(user.getPoints())
+                .level(user.getLevel())
+                .levelName(user.getLevelName())
+                .profilePhotoBase64(user.getProfilePhotoBase64())
+                .build();
     }
 }
