@@ -126,10 +126,14 @@ def infer_one(model, pil_img, classes):
         probs = torch.softmax(outputs, dim=1).squeeze()
         class_index = int(torch.argmax(probs).item())
         confidence = float(probs[class_index].item())
-    label = classes[class_index] if confidence >= THRESHOLD else "Ave no identificada"
-    return label, confidence
 
-# ---- NUEVO: detección previa con YOLO ----
+    # Si la confianza no supera el umbral, devolvemos "Desconocida" y 0.0
+    if confidence >= THRESHOLD:
+        return classes[class_index], confidence
+    else:
+        return "Desconocida", 0.0
+
+# ---- Detección previa con YOLO ----
 def detect_bird_with_yolo(yolo_model, pil_img):
     results = yolo_model(pil_img, verbose=False)
     for result in results:
@@ -191,7 +195,8 @@ def main():
                 if bird_crop is not None:
                     label, conf = infer_one(model, bird_crop, classes)
                 else:
-                    label, conf = "No se detectó ave", 0.0
+                    # YOLO no detectó ave: "Desconocida", 0.0
+                    label, conf = "Desconocida", 0.0
 
                 detections.append({
                     "second": sec,
@@ -210,13 +215,23 @@ def main():
 
         cap.release()
 
+    # Si no se procesó ningún frame, devolvemos el formato estándar de "no reconocido"
     if processed_frames == 0:
-        err("No se pudo decodificar ningún frame. Revisa formato/códec/base64.", 6)
+        print(json.dumps({
+            "detections": [],
+            "bestLabel": "Desconocida",
+            "bestConfidence": 0.0
+        }, ensure_ascii=False))
+        return
+
+    # Normalizar mejor resultado: si sigue sin nada válido, usar "Desconocida", 0.0
+    if best_conf < 0 or best_label is None:
+        best_label, best_conf = "Desconocida", 0.0
 
     print(json.dumps({
         "detections": detections,
-        "bestLabel": best_label if best_label is not None else "Ave no identificada",
-        "bestConfidence": best_conf if best_conf >= 0 else 0.0
+        "bestLabel": best_label,
+        "bestConfidence": best_conf
     }, ensure_ascii=False))
 
 if __name__ == "__main__":
