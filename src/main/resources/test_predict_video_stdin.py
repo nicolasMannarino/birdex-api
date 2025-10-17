@@ -9,6 +9,7 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import torchvision.models as models
 from torchvision.models import ResNet18_Weights
+from ultralytics import YOLO
 
 # ---- Salida UTF-8 segura ----
 try:
@@ -17,13 +18,16 @@ try:
 except Exception:
     pass
 
+# ---- CONFIGURACIÓN ----
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 THRESHOLD = float(os.getenv("BIRDEX_THRESHOLD", "0.95"))
 
 BASE_DIR = os.path.dirname(__file__)
 MODEL_PATH = os.path.join(BASE_DIR, "modelo_imagenes_birdex.pth")
 CLASSES_PATH = os.path.join(BASE_DIR, "birdex_clases.json")
+YOLO_MODEL_PATH = os.path.join(BASE_DIR, "yolov8m.pt")
 
+# ---- TRANSFORMACIONES ----
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -31,6 +35,7 @@ transform = transforms.Compose([
                          std=[0.229, 0.224, 0.225])
 ])
 
+# ---- FUNCIONES DE UTILIDAD ----
 def err(msg, code=1):
     sys.stderr.write(f"[ERROR] {msg}\n")
     sys.exit(code)
@@ -55,6 +60,13 @@ def load_model(model_path, num_classes):
         return model
     except Exception as e:
         err(f"No se pudo cargar el modelo desde {model_path}: {e}", 11)
+
+def load_yolo_model(path):
+    try:
+        model = YOLO(path)
+        return model
+    except Exception as e:
+        err(f"No se pudo cargar el modelo YOLO desde {path}: {e}", 12)
 
 def read_json_stdin():
     raw = sys.stdin.read()
@@ -81,31 +93,28 @@ def extract_base64(s):
         err(f"Cadena base64 inválida: {e}", 4)
 
 def pick_suffix(b64_str: str, raw_bytes: bytes) -> str:
-    # 1) si viene data URI, usar el mime
     m = re.match(r"^data:(?P<mime>[^;]+);base64,", b64_str or "", flags=re.I)
     if m:
         mime = m.group("mime").lower()
-        if "quicktime" in mime:   # iOS suele mandar video/quicktime
+        if "quicktime" in mime:
             return ".mov"
         if "webm" in mime:
             return ".webm"
         if "x-matroska" in mime or "mkv" in mime:
             return ".mkv"
         return ".mp4"
-    # 2) heurística por magic bytes
     b = raw_bytes
-    if len(b) >= 12 and b[4:8] == b"ftyp":  # MP4/ISOBMFF
+    if len(b) >= 12 and b[4:8] == b"ftyp":
         return ".mp4"
-    if b[:4] == b"\x1A\x45\xDF\xA3":        # EBML (webm/mkv)
+    if b[:4] == b"\x1A\x45\xDF\xA3":
         return ".webm"
     if b[:4] == b"RIFF" and b[8:12] == b"AVI ":
         return ".avi"
     return ".mp4"
 
 def frame_to_pil(frame_bgr):
-    import PIL.Image
     rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-    return PIL.Image.fromarray(rgb)
+    return Image.fromarray(rgb)
 
 def pil_to_tensor(pil_img):
     return transform(pil_img).unsqueeze(0).to(DEVICE)
@@ -120,6 +129,19 @@ def infer_one(model, pil_img, classes):
     label = classes[class_index] if confidence >= THRESHOLD else "Ave no identificada"
     return label, confidence
 
+# ---- NUEVO: detección previa con YOLO ----
+def detect_bird_with_yolo(yolo_model, pil_img):
+    results = yolo_model(pil_img, verbose=False)
+    for result in results:
+        for box in result.boxes:
+            class_id = int(box.cls[0])
+            class_name = yolo_model.names[class_id]
+            if class_name.lower() == "bird":
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                return pil_img.crop((x1, y1, x2, y2))
+    return None
+
+# ---- MAIN ----
 def main():
     payload = read_json_stdin()
     b64_in = payload.get("fileBase64")
@@ -130,11 +152,11 @@ def main():
 
     classes = load_classes(CLASSES_PATH)
     model = load_model(MODEL_PATH, len(classes))
+    yolo_model = load_yolo_model(YOLO_MODEL_PATH)
 
     video_bytes = extract_base64(b64_in)
     suffix = pick_suffix(b64_in if isinstance(b64_in, str) else "", video_bytes)
 
-    # Guardar temporal con sufijo adecuado (ayuda a OpenCV)
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
         tmp.write(video_bytes)
         tmp.flush()
@@ -145,14 +167,14 @@ def main():
 
         v_fps = cap.get(cv2.CAP_PROP_FPS)
         if not v_fps or v_fps <= 1e-3:
-            v_fps = 30.0  # fallback
+            v_fps = 30.0
 
-        stride = max(1, int(round(v_fps / sample_fps)))  # cada cuántos frames muestreo
+        stride = max(1, int(round(v_fps / sample_fps)))
         frame_idx = 0
         detections = []
         best_label, best_conf = None, -1.0
         processed_frames = 0
-        max_frames = int(15 * v_fps)  # respetar 15s máx.
+        max_frames = int(15 * v_fps)
 
         while True:
             ok, frame = cap.read()
@@ -164,7 +186,12 @@ def main():
             if frame_idx % stride == 0:
                 sec = int(frame_idx / v_fps)
                 pil_img = frame_to_pil(frame)
-                label, conf = infer_one(model, pil_img, classes)
+
+                bird_crop = detect_bird_with_yolo(yolo_model, pil_img)
+                if bird_crop is not None:
+                    label, conf = infer_one(model, bird_crop, classes)
+                else:
+                    label, conf = "No se detectó ave", 0.0
 
                 detections.append({
                     "second": sec,

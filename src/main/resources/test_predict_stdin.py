@@ -6,6 +6,7 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import torchvision.models as models
 from torchvision.models import ResNet18_Weights
+from ultralytics import YOLO
 
 # ---- Salida UTF-8 segura en Windows / evitar emojis ----
 try:
@@ -20,7 +21,9 @@ THRESHOLD = 0.95
 BASE_DIR = os.path.dirname(__file__)
 MODEL_PATH = os.path.join(BASE_DIR, "modelo_imagenes_birdex.pth")
 CLASSES_PATH = os.path.join(BASE_DIR, "birdex_clases.json")
+YOLO_PATH = os.path.join(BASE_DIR, "yolov8m.pt")
 
+# ---- Transformaciones del clasificador ----
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -60,11 +63,9 @@ def extract_base64_from_stdin():
 
     s = raw.strip()
 
-    # Si viene JSON, intentamos extraer la clave con la imagen
     if s.startswith("{"):
         try:
             data = json.loads(s)
-            # Probar varias claves posibles
             for k in ("imageBase64", "image", "base64", "b64", "data"):
                 if k in data and isinstance(data[k], str) and data[k].strip():
                     s = data[k].strip()
@@ -74,39 +75,60 @@ def extract_base64_from_stdin():
         except Exception as e:
             err(f"Entrada con formato JSON inválido: {e}", 3)
 
-    # Remover prefijo data URL si existe
     if s.lower().startswith("data:"):
         try:
             s = s.split(",", 1)[1]
         except Exception:
             err("Prefijo data URL mal formado.", 3)
 
-    # Quitar espacios/blancos y posibles saltos
     s = re.sub(r"\s+", "", s)
 
-    # Validar y decodificar base64 estrictamente
     try:
         return base64.b64decode(s, validate=True)
     except binascii.Error as e:
         err(f"Cadena base64 inválida: {e}", 4)
 
 def open_image(img_bytes):
-    # Permitir cargar imágenes levemente truncadas si vienen cortadas
     ImageFile.LOAD_TRUNCATED_IMAGES = True
     try:
         return Image.open(BytesIO(img_bytes)).convert("RGB")
     except Exception as e:
-        err(f"No se pudo identificar/abrir la imagen (¿base64 recortado o tipo no soportado?): {e}", 5)
+        err(f"No se pudo abrir la imagen: {e}", 5)
+
+def detect_bird_with_yolo(image):
+    """Devuelve el recorte del ave si hay detección, o None si no hay."""
+    try:
+        yolo_model = YOLO(YOLO_PATH)
+    except Exception as e:
+        err(f"No se pudo cargar el modelo YOLO: {e}", 12)
+
+    results = yolo_model(image)
+    for result in results:
+        for box in result.boxes:
+            class_id = int(box.cls[0])
+            class_name = yolo_model.names[class_id]
+            if class_name.lower() == "bird":
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                return image.crop((x1, y1, x2, y2))
+    return None
 
 def main():
+    # Cargar clases y modelo de clasificación
     classes = load_classes(CLASSES_PATH)
     model = load_model(MODEL_PATH, len(classes))
 
+    # Obtener imagen
     img_bytes = extract_base64_from_stdin()
     image = open_image(img_bytes)
 
-    input_tensor = transform(image).unsqueeze(0).to(DEVICE)
+    # ---- Detectar ave con YOLO ----
+    bird_crop = detect_bird_with_yolo(image)
+    if bird_crop is None:
+        print("No se detectó un ave,0.0")
+        return
 
+    # ---- Clasificar ----
+    input_tensor = transform(bird_crop).unsqueeze(0).to(DEVICE)
     with torch.no_grad():
         outputs = model(input_tensor)
         probs = torch.softmax(outputs, dim=1).squeeze()
@@ -114,7 +136,6 @@ def main():
         confidence = float(probs[class_index].item())
 
     etiqueta = classes[class_index] if confidence >= THRESHOLD else "Ave no identificada"
-    # Salida limpia en CSV simple para que Java la parsee fácil
     print(f"{etiqueta},{confidence:.4f}")
 
 if __name__ == "__main__":
