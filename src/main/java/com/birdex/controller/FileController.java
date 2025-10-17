@@ -19,7 +19,7 @@ public class FileController {
 
     private static final String FILE_PATH = "tiles/tiles_argentina.zip";
 
-    @GetMapping(value = "tiles_argentina.zip", produces = "application/zip")
+    @GetMapping(value = "tiles", produces = "application/zip")
     @Operation(
             summary = "Descargar archivo de tiles de Argentina",
             description = "Devuelve el archivo `tiles_argentina.zip` ubicado en la carpeta `/tiles` del proyecto."
