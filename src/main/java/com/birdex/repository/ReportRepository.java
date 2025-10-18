@@ -27,4 +27,14 @@ public interface ReportRepository extends JpaRepository<ReportEntity, UUID> {
     int updateStatus(@Param("id") UUID id, @Param("status") ReportStatus status);
 
     boolean existsBySighting_SightingId(UUID sightingId);
+
+    @Query("""
+        select r from ReportEntity r
+        where (:status is null or r.status = :status)
+        order by r.reportedAt desc
+        """)
+    Page<ReportEntity> findAllByStatusOrderByReportedAtDesc(
+            @Param("status") ReportStatus status,
+            Pageable pageable
+    );
 }

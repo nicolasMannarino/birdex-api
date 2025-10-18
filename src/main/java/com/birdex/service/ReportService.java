@@ -11,6 +11,8 @@ import com.birdex.repository.SightingRepository;
 import com.birdex.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -54,8 +56,8 @@ public class ReportService {
 
     }
 
-    public List<ReportEntity> listReports() {
-        return reportRepository.findAll();
+    public Page<ReportEntity> listReports(ReportStatus status, Pageable pageable) {
+        return reportRepository.findAllByStatusOrderByReportedAtDesc(status, pageable);
     }
 
     public void markReportAccepted(String reportId) {

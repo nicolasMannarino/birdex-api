@@ -4,6 +4,7 @@ import com.birdex.config.BucketProperties;
 import com.birdex.domain.ActionReportRequest;
 import com.birdex.domain.enums.Action;
 import com.birdex.entity.ReportEntity;
+import com.birdex.entity.enums.ReportStatus;
 import com.birdex.service.BucketService;
 import com.birdex.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -223,8 +226,36 @@ public class AdminController {
     }
 
     @GetMapping("/reports/list")
-    public ResponseEntity<List<ReportEntity>> listReports() {
-        return ResponseEntity.ok(reportService.listReports());
+    @Operation(
+            summary = "Listar reportes",
+            description = "Devuelve reportes paginados, ordenados por fecha de reporte descendente. "
+                    + "Podés filtrar opcionalmente por estado."
+    )
+    @ApiResponse(responseCode = "200", description = "OK")
+    public ResponseEntity<Page<ReportEntity>> listReports(
+            @Parameter(
+                    description = "Página (base 0)",
+                    example = "0"
+            )
+            @RequestParam(defaultValue = "0") int page,
+
+            @Parameter(
+                    description = "Tamaño de página",
+                    example = "20"
+            )
+            @RequestParam(defaultValue = "20") int size,
+
+            @Parameter(
+                    description = "Estado para filtrar (opcional)",
+                    schema = @Schema(implementation = ReportStatus.class,
+                            allowableValues = {"PENDING","IN_REVIEW","RESOLVED","DISMISSED"}),
+                    example = "PENDING"
+            )
+            @RequestParam(required = false) ReportStatus status
+    ) {
+        PageRequest pageable = PageRequest.of(page, Math.max(1, Math.min(size, 200)));
+        Page<ReportEntity> result = reportService.listReports(status, pageable);
+        return ResponseEntity.ok(result);
     }
 
     @PutMapping("/reports")
