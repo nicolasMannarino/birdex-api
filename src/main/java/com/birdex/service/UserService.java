@@ -9,6 +9,7 @@ import com.birdex.entity.UserEntity;
 import com.birdex.exception.UserAlreadyExistsException;
 import com.birdex.exception.UserNotFoundException;
 import com.birdex.mapper.SightingMapper;
+import com.birdex.repository.LevelRepository;
 import com.birdex.repository.SightingRepository;
 import com.birdex.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +26,11 @@ public class UserService {
 
     private final SightingRepository sightingRepository;
     private final UserRepository userRepository;
+    private final LevelRepository levelRepository;
 
     private static final String MSG_USER_NOT_FOUND_BY_EMAIL = "No encontramos una cuenta registrada con ese correo.";
     private static final String MSG_USER_NOT_FOUND_BY_USERNAME = "No encontramos una cuenta registrada con ese usuario.";
+    private static final Integer NEXT_LEVEL = 1;
 
     public List<SightingDto> getSightingByEmail(String email) {
         return SightingMapper.toDtoList(sightingRepository.findByUserEmailAndDeletedFalse(email));
@@ -68,10 +71,12 @@ public class UserService {
         log.info("Username updated.");
     }
 
-    public UserResponse getUserInfo(String username){
+    public UserResponse getUserInfo(String username) {
         log.info("Searching user with username: {}", username);
         UserEntity user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(MSG_USER_NOT_FOUND_BY_EMAIL));
+
+        Integer xpRequired = levelRepository.findById(user.getLevel() + NEXT_LEVEL).orElseThrow(() -> new RuntimeException("")).getXpRequired();
 
         log.info("User founded. - {}", username);
         return UserResponse.builder()
@@ -81,6 +86,7 @@ public class UserService {
                 .level(user.getLevel())
                 .levelName(user.getLevelName())
                 .profilePhotoBase64(user.getProfilePhotoBase64())
+                .xpRequired(xpRequired)
                 .build();
     }
 }
