@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS sightings (
     date_time  TIMESTAMP NOT NULL,
     user_id     UUID NOT NULL,
     bird_id     UUID NOT NULL,
+    deleted               BOOLEAN    NOT NULL DEFAULT FALSE,
     CONSTRAINT chk_sight_lat CHECK (latitude BETWEEN -90 AND 90),
     CONSTRAINT chk_sight_lon CHECK (longitude BETWEEN -180 AND 180),
     CONSTRAINT fk_user  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,

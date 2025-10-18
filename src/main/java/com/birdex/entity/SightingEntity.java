@@ -52,4 +52,8 @@ public class SightingEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "bird_id", nullable = false)
     private BirdEntity bird;
+
+    @Column(name = "deleted", nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
 }

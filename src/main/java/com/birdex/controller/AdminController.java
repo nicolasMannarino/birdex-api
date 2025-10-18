@@ -1,6 +1,9 @@
 package com.birdex.controller;
 
 import com.birdex.config.BucketProperties;
+import com.birdex.domain.ActionReportRequest;
+import com.birdex.domain.enums.Action;
+import com.birdex.entity.ReportEntity;
 import com.birdex.service.BucketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,8 +41,8 @@ public class AdminController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = Map.class),
                             examples = @ExampleObject(value = """
-                  { "bucket": "birds", "key": "zorzal-colorado/profile.jpg", "url": "http://localhost:9100/birds/zorzal-colorado/profile.jpg" }
-                """))),
+                                      { "bucket": "birds", "key": "zorzal-colorado/profile.jpg", "url": "http://localhost:9100/birds/zorzal-colorado/profile.jpg" }
+                                    """))),
             @ApiResponse(responseCode = "400", description = "Request inválido (base64 o contentType faltantes)"),
             @ApiResponse(responseCode = "500", description = "Error interno al subir al bucket")
     })
@@ -51,11 +55,11 @@ public class AdminController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BirdProfileBase64Request.class),
                             examples = @ExampleObject(name = "Ejemplo", value = """
-                      {
-                        "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
-                        "contentType": "image/jpeg"
-                      }
-                    """)
+                                      {
+                                        "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
+                                        "contentType": "image/jpeg"
+                                      }
+                                    """)
                     )
             )
             @RequestBody BirdProfileBase64Request body
@@ -92,8 +96,8 @@ public class AdminController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = Map.class),
                             examples = @ExampleObject(value = """
-                  { "base64": "/9j/4AAQSkZJRgABAQ..." }
-                """))),
+                                      { "base64": "/9j/4AAQSkZJRgABAQ..." }
+                                    """))),
             @ApiResponse(responseCode = "404", description = "No existe perfil para ese ave")
     })
     public ResponseEntity<Map<String, String>> getProfileBase64(
@@ -117,8 +121,8 @@ public class AdminController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = Map.class),
                             examples = @ExampleObject(value = """
-                  { "dataUri": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..." }
-                """))),
+                                      { "dataUri": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..." }
+                                    """))),
             @ApiResponse(responseCode = "404", description = "No existe perfil para ese ave")
     })
     public ResponseEntity<Map<String, String>> getProfileDataUri(
@@ -142,11 +146,11 @@ public class AdminController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BulkUploadResult[].class),
                             examples = @ExampleObject(value = """
-                        [
-                          { "birdName": "zorzal-colorado", "bucket": "birds", "key": "zorzal-colorado/profile.jpg", "url": "http://localhost:9100/birds/zorzal-colorado/profile.jpg" },
-                          { "birdName": "tucan-toco", "error": "Content-Type no soportado: image/gif" }
-                        ]
-                        """))),
+                                    [
+                                      { "birdName": "zorzal-colorado", "bucket": "birds", "key": "zorzal-colorado/profile.jpg", "url": "http://localhost:9100/birds/zorzal-colorado/profile.jpg" },
+                                      { "birdName": "tucan-toco", "error": "Content-Type no soportado: image/gif" }
+                                    ]
+                                    """))),
             @ApiResponse(responseCode = "400", description = "Request inválido (lista vacía o datos faltantes)"),
             @ApiResponse(responseCode = "500", description = "Error inesperado")
     })
@@ -157,21 +161,21 @@ public class AdminController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BulkBirdProfileBase64Request.class),
                             examples = @ExampleObject(name = "Ejemplo", value = """
-                        {
-                          "uploads": [
-                            {
-                              "birdName": "zorzal-colorado",
-                              "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
-                              "contentType": "image/jpeg"
-                            },
-                            {
-                              "birdName": "tucan-toco",
-                              "base64": "/9j/4AAQSkZJRgABAQ...",
-                              "contentType": "image/png"
-                            }
-                          ]
-                        }
-                        """)
+                                    {
+                                      "uploads": [
+                                        {
+                                          "birdName": "zorzal-colorado",
+                                          "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
+                                          "contentType": "image/jpeg"
+                                        },
+                                        {
+                                          "birdName": "tucan-toco",
+                                          "base64": "/9j/4AAQSkZJRgABAQ...",
+                                          "contentType": "image/png"
+                                        }
+                                      ]
+                                    }
+                                    """)
                     )
             )
             @RequestBody BulkBirdProfileBase64Request body
@@ -215,6 +219,23 @@ public class AdminController {
 
         return ResponseEntity.ok(results);
     }
+
+    @GetMapping("/reports/list")
+    public ResponseEntity<List<ReportEntity>> listReports() {
+
+    }
+
+    @PutMapping("/reports")
+    public ResponseEntity<Void> updateReport(@RequestBody ActionReportRequest request) {
+        if (Action.ACCEPT.name().equals(request.getAction())) {
+            // service.acceptReport
+        } else {
+            // service.declineReport
+        }
+        return ResponseEntity.ok().build();
+    }
+
+
 
     @Data
     @Schema(name = "BulkBirdProfileBase64Request", description = "Payload para subir varias imágenes de perfil en base64")

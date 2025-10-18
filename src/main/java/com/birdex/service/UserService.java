@@ -30,11 +30,11 @@ public class UserService {
     private static final String MSG_USER_NOT_FOUND_BY_USERNAME = "No encontramos una cuenta registrada con ese usuario.";
 
     public List<SightingDto> getSightingByEmail(String email) {
-        return SightingMapper.toDtoList(sightingRepository.findByUserEmail(email));
+        return SightingMapper.toDtoList(sightingRepository.findByUserEmailAndDeletedFalse(email));
     }
 
     public List<SightingEntity> getSightingsEntityByEmail(String email) {
-        return sightingRepository.findByUserEmail(email);
+        return sightingRepository.findByUserEmailAndDeletedFalse(email);
     }
 
     public void updatePhoto(String email, UserPhotoRequest request) {

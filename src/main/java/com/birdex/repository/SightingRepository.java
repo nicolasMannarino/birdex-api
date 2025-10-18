@@ -13,14 +13,17 @@ import java.util.List;
 import java.util.UUID;
 
 public interface SightingRepository extends JpaRepository<SightingEntity, UUID> {
-    List<SightingEntity> findByUserEmail(String email);
-    List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailOrderByDateTimeDesc(String birdName, String email);
-    List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailNotOrderByDateTimeDesc(String birdName, String email);
+    List<SightingEntity> findByUserEmailAndDeletedFalse(String email);
+    List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailAndDeletedFalseOrderByDateTimeDesc(
+            String birdName, String email
+    );
+    List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailNotAndDeletedFalseOrderByDateTimeDesc(String birdName, String email);
     @Query("""
         select s
         from SightingEntity s
         join s.bird b
-        where (:sizeLower   is null or lower(b.size) = :sizeLower)
+        where s.deleted = false 
+          and (:sizeLower   is null or lower(b.size) = :sizeLower)
           and (:rarityLower is null or exists (
                  select 1
                  from BirdRarityEntity br
@@ -44,7 +47,13 @@ public interface SightingRepository extends JpaRepository<SightingEntity, UUID> 
             Pageable pageable
     );
 
-    @Query("select s from SightingEntity s join fetch s.bird b order by b.name asc, s.dateTime desc")
+    @Query("""
+        select s
+        from SightingEntity s
+        join fetch s.bird b
+        where s.deleted = false
+        order by b.name asc, s.dateTime desc
+        """)
     List<SightingEntity> findAllOrderByBirdAndDateTimeDesc();
     void deleteAllByIdInBatch(Iterable<UUID> ids);
 }

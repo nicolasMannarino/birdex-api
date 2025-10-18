@@ -118,7 +118,7 @@ public class SightingService {
     public SightingByUserResponse getSightingsByUser(String email) {
         validateIfEmailExists(email);
 
-        List<SightingEntity> entities = sightingRepository.findByUserEmail(email);
+        List<SightingEntity> entities = sightingRepository.findByUserEmailAndDeletedFalse(email);
         List<SightingDto> dtos = SightingMapper.toDtoList(entities);
 
         List<SightingResponse> responses = buildResponseList(dtos);
@@ -150,10 +150,10 @@ public class SightingService {
         String profileB64 = bucketService.getBirdProfileBase64(canonicalBirdName);
 
         List<SightingEntity> mineEntities =
-                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailOrderByDateTimeDesc(canonicalBirdName, email);
+                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailAndDeletedFalseOrderByDateTimeDesc(canonicalBirdName, email);
 
         List<SightingEntity> othersEntities =
-                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailNotOrderByDateTimeDesc(canonicalBirdName, email);
+                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailNotAndDeletedFalseOrderByDateTimeDesc(canonicalBirdName, email);
 
         Map<String, List<String>> imagesByUserCache = new HashMap<>();
 
