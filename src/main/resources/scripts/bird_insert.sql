@@ -144,6 +144,30 @@ CREATE TABLE IF NOT EXISTS sightings (
 CREATE INDEX IF NOT EXISTS idx_sightings_lat_lon ON sightings (latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_sightings_datetime ON sightings (date_time);
 
+-- ---------- REPORTS ----------
+CREATE TABLE IF NOT EXISTS reports (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sighting_id         UUID        NOT NULL,
+    reported_by_user_id UUID        NOT NULL,
+    reported_at         TIMESTAMP   NOT NULL DEFAULT NOW(),
+    read_at             TIMESTAMP,
+    status              TEXT        NOT NULL DEFAULT 'pending',
+    description         TEXT,
+
+    CONSTRAINT fk_reports_sighting
+        FOREIGN KEY (sighting_id) REFERENCES sightings(sighting_id) ON DELETE CASCADE,
+
+    CONSTRAINT fk_reports_user
+        FOREIGN KEY (reported_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
+
+    CONSTRAINT chk_reports_status
+        CHECK (status IN ('pending','in_review','resolved','dismissed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_sighting      ON reports (sighting_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status        ON reports (status);
+CREATE INDEX IF NOT EXISTS idx_reports_reported_at   ON reports (reported_at);
+CREATE INDEX IF NOT EXISTS idx_reports_reported_by   ON reports (reported_by_user_id);
 -- ---------- COLORS / RARITIES / PUENTES ----------
 CREATE TABLE IF NOT EXISTS colors (
     color_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
