@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -50,5 +52,35 @@ public class ReportService {
 
         return response.getId();
 
+    }
+
+    public List<ReportEntity> listReports() {
+        return reportRepository.findAll();
+    }
+
+    public void markReportAccepted(String reportId) {
+        ReportEntity report = checkIfReportIdExists(reportId);
+        report.setReadAt(LocalDateTime.now());
+        report.setStatus(ReportStatus.RESOLVED);
+        reportRepository.save(report);
+
+        SightingEntity sighting = sightingRepository.findById(report.getSighting().getSightingId())
+                .orElseThrow(() -> new RuntimeException("Error"));
+
+        sighting.setDeleted(true);
+        sightingRepository.save(sighting);
+
+    }
+
+    public void markReportDeclined(String reportId) {
+        ReportEntity report = checkIfReportIdExists(reportId);
+        report.setReadAt(LocalDateTime.now());
+        report.setStatus(ReportStatus.DISMISSED);
+        reportRepository.save(report);
+    }
+
+    private ReportEntity checkIfReportIdExists(String reportId) {
+        return reportRepository.findById(UUID.fromString(reportId))
+                .orElseThrow(() -> new RuntimeException("Reporte no encontrado"));
     }
 }

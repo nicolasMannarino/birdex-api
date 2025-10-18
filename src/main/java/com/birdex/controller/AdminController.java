@@ -5,6 +5,7 @@ import com.birdex.domain.ActionReportRequest;
 import com.birdex.domain.enums.Action;
 import com.birdex.entity.ReportEntity;
 import com.birdex.service.BucketService;
+import com.birdex.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class AdminController {
 
     private final BucketService bucketService;
+    private final ReportService reportService;
     private final BucketProperties props;
 
     @PostMapping(value = "/{birdName}/profile", consumes = "application/json", produces = "application/json")
@@ -222,15 +224,15 @@ public class AdminController {
 
     @GetMapping("/reports/list")
     public ResponseEntity<List<ReportEntity>> listReports() {
-
+        return ResponseEntity.ok(reportService.listReports());
     }
 
     @PutMapping("/reports")
     public ResponseEntity<Void> updateReport(@RequestBody ActionReportRequest request) {
         if (Action.ACCEPT.name().equals(request.getAction())) {
-            // service.acceptReport
+            reportService.markReportAccepted(request.getReportId());
         } else {
-            // service.declineReport
+            reportService.markReportDeclined(request.getReportId());
         }
         return ResponseEntity.ok().build();
     }
