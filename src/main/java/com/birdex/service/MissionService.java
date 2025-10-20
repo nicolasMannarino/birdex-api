@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -41,17 +42,6 @@ public class MissionService {
 
         for (UserMissionEntity userMissionEntity : activeMissions) {
             MissionEntity missionEntity = userMissionEntity.getMission();
-            // 2. Traer progreso actual
-            /**UserMissionEntity userMission = userMissionRepository
-                    .findByUser_UserIdAndMission_MissionId(user.getUserId(), mission.getMissionId())
-                    .orElseGet(() -> {
-                        UserMissionEntity newProgress = new UserMissionEntity();
-                        newProgress.setUser(user);
-                        newProgress.setMission(mission);
-                        newProgress.setProgress(new java.util.HashMap<>()); // empieza vacío
-                        newProgress.setCompleted(false);
-                        return newProgress;
-                    });*/
 
             if (Boolean.TRUE.equals(userMissionEntity.getCompleted())) {
                 continue; // ya completada, no hacemos nada
@@ -59,53 +49,64 @@ public class MissionService {
 
             Map<String, Object> objective = missionEntity.getObjective();
             Map<String, Object> progress = userMissionEntity.getProgress();
-            if (progress == null) progress = new java.util.HashMap<>();
+            if (progress == null) progress = new HashMap<>();
 
             boolean updated = false;
 
-            // 3. Evaluar condiciones
-            if (objective.containsKey("sightings")) {
-                // Simple: contar avistamientos
-                int current = ((Number) progress.getOrDefault("sightings", 0)).intValue();
-                progress.put("sightings", current + 1);
-                updated = true;
-            }
+            // 2. Evaluar condiciones según el tipo de objetivo
+            for (Map.Entry<String, Object> entry : objective.entrySet()) {
+                String key = entry.getKey();
+                Object value = entry.getValue();
 
-            if (objective.containsKey("rarity")) {
-                String targetRarity = (String) objective.get("rarity");
-                String birdRarity = birdService.getRarityForBird(bird);
-
-                    if (targetRarity != null && targetRarity.equalsIgnoreCase(birdRarity)) {
-                        int current = ((Number) progress.getOrDefault("count", 0)).intValue();
-                        progress.put("count", current + 1);
+                switch (key) {
+                    case "sightings" -> {
+                        int current = ((Number) progress.getOrDefault("sightings", 0)).intValue();
+                        progress.put("sightings", current + 1);
                         updated = true;
                     }
-                }
 
-            if (objective.containsKey("province")) {
-                String targetProvince = (String) objective.get("province");
-                String sightingProvince = sighting.getLocationText();
+                    case "rarity" -> {
+                        String targetRarity = (String) value;
+                        String birdRarity = birdService.getRarityForBird(bird);
 
-                if (targetProvince != null && targetProvince.equalsIgnoreCase(sightingProvince)) {
-                    int current = ((Number) progress.getOrDefault("count", 0)).intValue();
-                    progress.put("count", current + 1);
-                    updated = true;
+                        if (birdRarity != null && birdRarity.equalsIgnoreCase(targetRarity)) {
+                            int current = ((Number) progress.getOrDefault("count", 0)).intValue() + 1;
+                            progress.put("count", current);
+                            progress.put("rarity", targetRarity); // ✅ importante para validación
+                            updated = true;
+                        }
+                    }
+
+                    case "province" -> {
+                        String targetProvince = (String) value;
+                        String sightingProvince = sighting.getLocationText();
+
+                        if (targetProvince != null && targetProvince.equalsIgnoreCase(sightingProvince)) {
+                            int current = ((Number) progress.getOrDefault("count", 0)).intValue() + 1;
+                            progress.put("count", current);
+                            updated = true;
+                        }
+                    }
+
+                    
                 }
             }
 
-            // 4. Verificar si se completó
+            // 3. Verificar si se completó
             boolean completed = checkCompletion(objective, progress);
             if (completed) {
                 userMissionEntity.setCompleted(true);
                 userMissionEntity.setCompletedAt(LocalDateTime.now());
             }
 
-            if (updated) {
+            // 4. Guardar si hubo cambios
+            if (updated || completed) {
                 userMissionEntity.setProgress(progress);
                 userMissionRepository.save(userMissionEntity);
             }
-            }
+        }
     }
+
 
     private boolean checkCompletion(Map<String, Object> objective, Map<String, Object> progress) {
         for (Map.Entry<String, Object> entry : objective.entrySet()) {
