@@ -80,6 +80,32 @@ public class BucketService {
                 .build();
     }
 
+    public String getBirdProfilePublicUrl(String birdName, BirdImageSize size) {
+        String bucket = birdsBucket();
+        if (bucket == null || bucket.isBlank()) {
+            throw new IllegalStateException("Config 'minio.birds.bucket' vacío o nulo");
+        }
+
+        String slug = slugify(birdName);
+        String preferredKey = switch (size) {
+            case THUMB_256 -> slug + "/profile_256.jpg";
+            case MEDIUM_600 -> slug + "/profile_600.jpg";
+        };
+
+        String keyToUse;
+        if (objectExists(bucket, preferredKey)) {
+            keyToUse = preferredKey;
+        } else {
+            keyToUse = resolveProfileKey(bucket, birdName);
+            if (!objectExists(bucket, keyToUse)) {
+                log.warn("Imagen no encontrada para '{}': ni '{}' ni '{}'", birdName, preferredKey, keyToUse);
+                keyToUse = preferredKey;
+            }
+        }
+
+        return buildPublicUrl(bucket, keyToUse);
+    }
+
     private void ensureBucketExists(String bucket) {
         try {
             s3.headBucket(HeadBucketRequest.builder().bucket(bucket).build());

@@ -28,19 +28,24 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
-  localstack:
-    image: localstack/localstack:latest
-    container_name: localstack
-    ports:
-      - "5566:4566"
-      - "5571:4571"
-    environment:
-      - SERVICES=s3
-      - AWS_DEFAULT_REGION=us-west-2
-      - DEBUG=1
-    volumes:
-      - ./init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh
-      - "/var/run/docker.sock:/var/run/docker.sock"
+  minio-setup:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: >
+      '
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/birds &&
+      mc anonymous set download local/birds &&
+      echo "[{\"AllowedOrigin\":[\"*\"],\"AllowedMethod\":[\"GET\",\"HEAD\"],\"AllowedHeader\":[\"*\"],\"ExposeHeader\":[\"ETag\",\"Content-Length\",\"Content-Type\"],\"MaxAgeSeconds\":3000}]" > /cors.json &&
+      mc cors set local/birds /cors.json &&
+      mc cors info local/birds &&
+      echo "MinIO setup OK"
+      '
+    networks:
+      - default
 
 volumes:
   postgres_data:

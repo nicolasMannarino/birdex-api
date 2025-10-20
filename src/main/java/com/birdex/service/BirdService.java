@@ -135,8 +135,8 @@ public class BirdService {
 
         List<BirdListItem> content = page.getContent().stream()
                 .map(it -> {
-                    String thumb = bucketService.getBirdProfilePresignedUrl(it.getName(), BirdImageSize.THUMB_256, Duration.ofHours(24));
-                    String medium = bucketService.getBirdProfilePresignedUrl(it.getName(), BirdImageSize.MEDIUM_600, Duration.ofHours(24));
+                    String thumb = bucketService.getBirdProfilePublicUrl(it.getName(), BirdImageSize.THUMB_256);
+                    String medium = bucketService.getBirdProfilePublicUrl(it.getName(), BirdImageSize.MEDIUM_600);
 
                     List<ZonePointDto> zones = birdRepository.findZonesForBird(it.getBirdId())
                             .stream()
