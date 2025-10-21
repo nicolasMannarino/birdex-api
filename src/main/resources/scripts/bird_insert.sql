@@ -723,6 +723,42 @@ INSERT INTO provinces (name) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- Waves: ejemplos
+-- 1. Cóndor Andino (Vultur gryphus)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Vultur gryphus'),
+     p_ju AS (SELECT province_id FROM provinces WHERE name = 'Jujuy'),
+     p_sl AS (SELECT province_id FROM provinces WHERE name = 'Salta'),
+     p_ne AS (SELECT province_id FROM provinces WHERE name = 'Neuquén')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 5, p_ju.province_id FROM bird b, p_ju
+UNION ALL
+SELECT b.bird_id, 9, p_sl.province_id FROM bird b, p_sl
+UNION ALL
+SELECT b.bird_id, 11, p_ne.province_id FROM bird b, p_ne
+ON CONFLICT DO NOTHING;
+
+-- 2. Hornero (Furnarius rufus) - residente, leves movimientos locales
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Furnarius rufus'),
+     p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires'),
+     p_sf AS (SELECT province_id FROM provinces WHERE name = 'Santa Fe')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 10, p_ba.province_id FROM bird b, p_ba
+UNION ALL
+SELECT b.bird_id, 11, p_sf.province_id FROM bird b, p_sf
+ON CONFLICT DO NOTHING;
+
+-- 3. Cardenal Amarillo (Gubernatrix cristata)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Gubernatrix cristata'),
+     p_sf AS (SELECT province_id FROM provinces WHERE name = 'Santa Fe'),
+     p_er AS (SELECT province_id FROM provinces WHERE name = 'Entre Ríos'),
+     p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 9, p_sf.province_id FROM bird b, p_sf
+UNION ALL
+SELECT b.bird_id, 10, p_er.province_id FROM bird b, p_er
+UNION ALL
+SELECT b.bird_id, 11, p_ba.province_id FROM bird b, p_ba
+ON CONFLICT DO NOTHING;
+
 WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Paroaria coronata'),
      p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires'),
      p_ju AS (SELECT province_id FROM provinces WHERE name = 'Jujuy'),
@@ -735,6 +771,39 @@ UNION ALL
 SELECT b.bird_id, 5, p_rn.province_id FROM bird b, p_rn
 ON CONFLICT DO NOTHING;
 
+-- 4. Chajá (Chauna torquata)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Chauna torquata'),
+     p_co AS (SELECT province_id FROM provinces WHERE name = 'Corrientes'),
+     p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 8, p_co.province_id FROM bird b, p_co
+UNION ALL
+SELECT b.bird_id, 10, p_ba.province_id FROM bird b, p_ba
+ON CONFLICT DO NOTHING;
+
+-- 5. Ñandú (Rhea americana)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Rhea americana'),
+     p_cn AS (SELECT province_id FROM provinces WHERE name = 'Chaco'),
+     p_lp AS (SELECT province_id FROM provinces WHERE name = 'La Pampa')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 4, p_cn.province_id FROM bird b, p_cn
+UNION ALL
+SELECT b.bird_id, 9, p_lp.province_id FROM bird b, p_lp
+ON CONFLICT DO NOTHING;
+
+-- 6. Flamenco Austral (Phoenicopterus chilensis)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Phoenicopterus chilensis'),
+     p_sa AS (SELECT province_id FROM provinces WHERE name = 'Salta'),
+     p_md AS (SELECT province_id FROM provinces WHERE name = 'Mendoza'),
+     p_ch AS (SELECT province_id FROM provinces WHERE name = 'Chubut')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 3, p_sa.province_id FROM bird b, p_sa
+UNION ALL
+SELECT b.bird_id, 5, p_md.province_id FROM bird b, p_md
+UNION ALL
+SELECT b.bird_id, 9, p_ch.province_id FROM bird b, p_ch
+ON CONFLICT DO NOTHING;
+
 WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Ramphastos toco'),
      p_mi AS (SELECT province_id FROM provinces WHERE name = 'Misiones'),
      p_co AS (SELECT province_id FROM provinces WHERE name = 'Corrientes')
@@ -744,6 +813,104 @@ UNION ALL
 SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
 ON CONFLICT DO NOTHING;
 
+-- 7. Zorzal Colorado (Turdus rufiventris)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Turdus rufiventris'),
+     p_mi AS (SELECT province_id FROM provinces WHERE name = 'Misiones'),
+     p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 9, p_mi.province_id FROM bird b, p_mi
+UNION ALL
+SELECT b.bird_id, 3, p_ba.province_id FROM bird b, p_ba
+ON CONFLICT DO NOTHING;
+
+-- 8. Azulito (Cyanocompsa brissonii)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Cyanocompsa brissonii'),
+     p_mi AS (SELECT province_id FROM provinces WHERE name = 'Misiones'),
+     p_er AS (SELECT province_id FROM provinces WHERE name = 'Entre Ríos')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 10, p_mi.province_id FROM bird b, p_mi
+UNION ALL
+SELECT b.bird_id, 11, p_er.province_id FROM bird b, p_er
+ON CONFLICT DO NOTHING;
+
+-- 9. Cisne Cuello Negro (Cygnus melancoryphus)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Cygnus melancoryphus'),
+     p_rn AS (SELECT province_id FROM provinces WHERE name = 'Río Negro'),
+     p_tf AS (SELECT province_id FROM provinces WHERE name = 'Tierra del Fuego'),
+     p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 2, p_tf.province_id FROM bird b, p_tf
+UNION ALL
+SELECT b.bird_id, 5, p_rn.province_id FROM bird b, p_rn
+UNION ALL
+SELECT b.bird_id, 9, p_ba.province_id FROM bird b, p_ba
+ON CONFLICT DO NOTHING;
+
+-- 10. Tero (Vanellus chilensis)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Vanellus chilensis'),
+     p_co AS (SELECT province_id FROM provinces WHERE name = 'Corrientes'),
+     p_ba AS (SELECT province_id FROM provinces WHERE name = 'Buenos Aires')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 8, p_co.province_id FROM bird b, p_co
+UNION ALL
+SELECT b.bird_id, 9, p_ba.province_id FROM bird b, p_ba
+ON CONFLICT DO NOTHING;
+
+-- 11. Águila Coronada (Buteogallus coronatus)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Buteogallus coronatus'),
+     p_sl AS (SELECT province_id FROM provinces WHERE name = 'San Luis'),
+     p_lar AS (SELECT province_id FROM provinces WHERE name = 'La Rioja'),
+     p_ch AS (SELECT province_id FROM provinces WHERE name = 'Chaco')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 4, p_ch.province_id FROM bird b, p_ch
+UNION ALL
+SELECT b.bird_id, 7, p_lar.province_id FROM bird b, p_lar
+UNION ALL
+SELECT b.bird_id, 10, p_sl.province_id FROM bird b, p_sl
+ON CONFLICT DO NOTHING;
+
+-- 12. Jote Cabeza Roja (Cathartes aura)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Cathartes aura'),
+     p_co AS (SELECT province_id FROM provinces WHERE name = 'Córdoba'),
+     p_rn AS (SELECT province_id FROM provinces WHERE name = 'Río Negro')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 3, p_co.province_id FROM bird b, p_co
+UNION ALL
+SELECT b.bird_id, 9, p_rn.province_id FROM bird b, p_rn
+ON CONFLICT DO NOTHING;
+
+-- 13. Frutero Azul (Pipraeidea bonariensis)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Pipraeidea bonariensis'),
+     p_mi AS (SELECT province_id FROM provinces WHERE name = 'Misiones'),
+     p_md AS (SELECT province_id FROM provinces WHERE name = 'Mendoza')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 9, p_mi.province_id FROM bird b, p_mi
+UNION ALL
+SELECT b.bird_id, 3, p_md.province_id FROM bird b, p_md
+ON CONFLICT DO NOTHING;
+
+-- 14. Lechuzón Orejudo (Asio clamator)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Asio clamator'),
+     p_er AS (SELECT province_id FROM provinces WHERE name = 'Entre Ríos'),
+     p_sf AS (SELECT province_id FROM provinces WHERE name = 'Santa Fe')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 8, p_er.province_id FROM bird b, p_er
+UNION ALL
+SELECT b.bird_id, 10, p_sf.province_id FROM bird b, p_sf
+ON CONFLICT DO NOTHING;
+
+-- 15. Celestino (Thraupis sayaca)
+WITH bird AS (SELECT bird_id FROM birds WHERE name = 'Thraupis sayaca'),
+     p_mi AS (SELECT province_id FROM provinces WHERE name = 'Misiones'),
+     p_co AS (SELECT province_id FROM provinces WHERE name = 'Corrientes'),
+     p_er AS (SELECT province_id FROM provinces WHERE name = 'Entre Ríos')
+INSERT INTO migratory_waves (bird_id, month, province_id)
+SELECT b.bird_id, 9, p_mi.province_id FROM bird b, p_mi
+UNION ALL
+SELECT b.bird_id, 10, p_co.province_id FROM bird b, p_co
+UNION ALL
+SELECT b.bird_id, 11, p_er.province_id FROM bird b, p_er
+ON CONFLICT DO NOTHING;
 
 
 INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
