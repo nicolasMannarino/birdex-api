@@ -79,16 +79,28 @@ public class SightingService {
                 .bird(birdEntity)
                 .build();
 
+        sightingRepository.save(sightingEntity);
+
         String mimeType = FileMetadataExtractor.extractMimeType(request.getBase64());
         byte[] data = FileMetadataExtractor.extractData(request.getBase64());
 
         String slugBird = Slugs.of(birdEntity.getName());
         String generated = FilenameGenerator.generate(request.getEmail(), birdEntity.getName(), mimeType);
-        String keyWithinBucket = request.getEmail() + "/" + slugBird + "/" + lastPathSegment(generated);
+
+        String sightingIdStr = sightingEntity.getSightingId() != null
+                ? sightingEntity.getSightingId().toString()
+                : UUID.randomUUID().toString(); // fallback (opcional)
+
+        String keyWithinBucket = String.format("%s/%s/%s/%s",
+                request.getEmail(),
+                slugBird,
+                sightingIdStr,
+                lastPathSegment(generated)
+        );
 
         bucketService.uploadSightingObject(keyWithinBucket, data, toContentType(mimeType), CACHE);
 
-        sightingRepository.save(sightingEntity);
+        
 
         int pointsAdded = pointsService.addPointsForSighting(userEntity, birdEntity);
         log.info("Se sumaron {} puntos al usuario {} por avistamiento de {}",
