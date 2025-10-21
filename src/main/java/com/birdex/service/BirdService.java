@@ -51,8 +51,11 @@ public class BirdService {
         });
 
         BirdDto dto = birdMapper.toDto(entity);
-        String image = bucketService.getBirdProfileBase64(dto.getName());
-        dto.setImage(image);
+
+        String thumb = bucketService.getBirdProfilePublicUrl(dto.getName(), BirdImageSize.THUMB_256);
+        dto.setThumbUrl(thumb);
+        String medium = bucketService.getBirdProfilePublicUrl(dto.getName(), BirdImageSize.MEDIUM_600);
+        dto.setImageUrl(medium);
 
         String rarity = birdRarityRepository.findRarityNameByBirdName(entity.getName()).orElse("");
         dto.setRarity(rarity);

@@ -29,12 +29,13 @@ public class BirdDto {
     @Schema(description = "Characteristics", example = "Melodic song; rufous belly...")
     private String characteristics;
 
-    @Schema(
-            description = "Image as base64-encoded string.",
-            type = "string",
-            example = "iVBORw0KGgoAAAANSUhEUgAA... (base64 truncated)"
-    )
-    private String image;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Schema(description = "Public thumbnail URL (256px)", example = "http://localhost:9100/birds/turdus-rufiventris/profile_256.jpg")
+    private String thumbUrl;
+
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Schema(description = "Public medium image URL (600px)", example = "http://localhost:9100/birds/turdus-rufiventris/profile_600.jpg")
+    private String imageUrl;
 
     @Schema(description = "Rarity (Common, Uncommon, Rare, Epic, Legendary)", example = "Common")
     private String rarity;

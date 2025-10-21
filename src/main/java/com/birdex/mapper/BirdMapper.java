@@ -21,7 +21,7 @@ public class BirdMapper {
         dto.setSize(entity.getSize());
         dto.setDescription(entity.getDescription());
         dto.setCharacteristics(entity.getCharacteristics());
-        dto.setImage(entity.getImage());
+
 
         dto.setSizeDetails(
                 BirdDto.Measurements.builder()
@@ -70,7 +70,7 @@ public class BirdMapper {
 
         entity.setDescription(dto.getDescription());
         entity.setCharacteristics(dto.getCharacteristics());
-        entity.setImage(dto.getImage());
+
         return entity;
     }
 }
