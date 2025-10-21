@@ -8,17 +8,19 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "minio")
 public class BucketProperties {
-    private String bucket;
     private String endpoint;
     private String accessKey;
     private String secretKey;
     private String region;
+
     private Birds birds;
+    private Sightings sightings;
 
-
-    @Data
-    public static class Birds {
+    @Data public static class Birds {
         private String bucket;
-        private String profileObjectName = "profile";
+        private String profileObjectName;
+    }
+    @Data public static class Sightings {
+        private String bucket;
     }
 }

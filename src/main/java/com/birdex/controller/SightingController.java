@@ -89,7 +89,7 @@ public class SightingController {
     @GetMapping("/{email}/{birdName}")
     @Operation(
             summary = "Imágenes de avistajes por usuario y ave",
-            description = "Devuelve imágenes en base64 de los avistajes del usuario para el ave indicada."
+            description = "Devuelve URLs públicas (thumbUrl e imageUrl) de los avistajes del usuario para el ave indicada."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "OK",

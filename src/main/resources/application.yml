@@ -29,14 +29,15 @@ birdex:
     enabled: true
 
 minio:
+  endpoint: http://localhost:9100
   access-key: minioadmin
   secret-key: minioadmin
   region: us-west-2
-  bucket: birdex-bucket
-  endpoint: http://localhost:9100
   birds:
     bucket: birds
     profile-object-name: profile
+  sightings:
+    bucket: birdex-bucket
 
 jwt:
   secret: ${JWT_SECRET:change_me_to_a_very_long_random_secret_32chars_min}

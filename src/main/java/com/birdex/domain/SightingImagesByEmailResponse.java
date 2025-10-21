@@ -9,9 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data @Builder
-@Schema(name = "SightingImagesByEmailResponse", description = "Imágenes base64 de un usuario para un ave")
+@Schema(name = "SightingImagesByEmailResponse", description = "URLs públicas de imágenes de avistajes")
 public class SightingImagesByEmailResponse {
-    @ArraySchema(arraySchema = @Schema(description = "Imágenes en base64"))
-    private List<String> base64Images = new ArrayList<>();
+    @ArraySchema(arraySchema = @Schema(description = "Listado de imágenes (thumb + image)"))
+    private List<SightingImageItem> images = new ArrayList<>();
 }
-

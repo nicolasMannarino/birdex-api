@@ -6,7 +6,8 @@ target/
 
 birdnet-service/__pycache__/server.cpython-311.pyc
 
-
+src/main/resources/yolov8m.pt
+tiles
 
 ### STS ###
 .apt_generated

@@ -106,12 +106,12 @@ public class SightingService {
     }
 
     public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest req) {
-        String slugBird = Slugs.of(req.getBirdName());
-        String prefix = SIGHTINGS_PREFIX + req.getEmail() + "/" + slugBird + "/";
-        // requiere método nuevo chico en BucketService (ver más abajo)
-        var images = bucketService.listBirdsImagesAsBase64(prefix, Integer.MAX_VALUE);
+        String slugBird = Slugs.snake(req.getBirdName());
+        String prefix = req.getEmail() + "/" + slugBird + "/";
+
+        var items = bucketService.listSightingImageUrls(prefix, Integer.MAX_VALUE);
         return SightingImagesByEmailResponse.builder()
-                .base64Images(images)
+                .images(items)
                 .build();
     }
 
@@ -208,7 +208,9 @@ public class SightingService {
                 k -> {
                     String slugBird = Slugs.of(canonicalBirdName);
                     String prefix = SIGHTINGS_PREFIX + (uEmail != null ? uEmail : "unknown") + "/" + slugBird + "/";
-                    return bucketService.listBirdsImagesAsBase64(prefix, 50);
+                    return bucketService.listSightingImageUrls(prefix, 50).stream()
+                            .map(com.birdex.domain.SightingImageItem::getImageUrl)
+                            .toList();
                 }
         );
 
