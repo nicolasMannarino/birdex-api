@@ -7,7 +7,8 @@ import lombok.Data;
 
 import java.util.List;
 
-@Data @Builder
+@Data
+@Builder
 @Schema(name = "SightingsForBirdResponse", description = "Avistajes propios y de otros para un ave")
 public class SightingsForBirdResponse {
 
@@ -19,9 +20,6 @@ public class SightingsForBirdResponse {
 
     @Schema(description = "Rareza (p. ej. Comun, Poco comun, Raro, Epico, Legendario)", example = "Comun")
     private String rarity;
-
-    @Schema(description = "Foto de perfil (base64)", example = "data:image/jpeg;base64,/9j/4AAQ...")
-    private String profilePhotoBase64;
 
     @ArraySchema(arraySchema = @Schema(description = "Mis avistajes"))
     private List<SightingFullResponse> mine;

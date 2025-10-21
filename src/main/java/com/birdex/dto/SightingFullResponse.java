@@ -1,6 +1,6 @@
 package com.birdex.dto;
 
-
+import com.birdex.domain.SightingImageItem;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Data @Builder
+@Data
+@Builder
 @Schema(name = "SightingFullResponse", description = "Detalle completo de un avistaje")
 public class SightingFullResponse {
 
@@ -39,8 +40,14 @@ public class SightingFullResponse {
     @Schema(description = "Nombre de usuario", example = "federico")
     private String username;
 
-    @ArraySchema(arraySchema = @Schema(description = "Imágenes del avistaje (base64)"))
-    private List<String> imagesBase64;
+    @Schema(description = "URL pública de la imagen ‘cover’ (thumbnail)")
+    private String coverThumbUrl;
+
+    @Schema(description = "URL pública de la imagen ‘cover’ (600px)")
+    private String coverImageUrl;
+
+    @ArraySchema(arraySchema = @Schema(description = "Imágenes del avistaje (URLs públicas)", implementation = SightingImageItem.class))
+    private List<SightingImageItem> images;
 
     @Schema(description = "Latitud", example = "-34.587300")
     private BigDecimal latitude;

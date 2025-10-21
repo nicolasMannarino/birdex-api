@@ -38,10 +38,9 @@ public class SightingService {
     private final BucketService bucketService;
     private final BirdRarityRepository birdRarityRepository;
     private final PointsService pointsService;
-    private final MissionService missionService;       
-    private final AchievementService achievementService; 
+    private final MissionService missionService;
+    private final AchievementService achievementService;
 
-    private static final String SIGHTINGS_PREFIX = "sightings/";
     private static final String CACHE = "public, max-age=31536000, immutable";
 
     public void registerSighting(SightingRequest request) {
@@ -80,17 +79,14 @@ public class SightingService {
                 .bird(birdEntity)
                 .build();
 
-        // ---- archivo en birds/sightings/{email}/{slug-bird}/<filename> ----
         String mimeType = FileMetadataExtractor.extractMimeType(request.getBase64());
         byte[] data = FileMetadataExtractor.extractData(request.getBase64());
 
         String slugBird = Slugs.of(birdEntity.getName());
         String generated = FilenameGenerator.generate(request.getEmail(), birdEntity.getName(), mimeType);
-        // FilenameGenerator suele devolver algo tipo: {email}/{Bird Name}/...  => lo colgamos de sightings/ y normalizamos ave a slug
-        // Armamos prefijo limpio y reusamos el nombre final del generator:
-        String key = SIGHTINGS_PREFIX + request.getEmail() + "/" + slugBird + "/" + lastPathSegment(generated);
+        String keyWithinBucket = request.getEmail() + "/" + slugBird + "/" + lastPathSegment(generated);
 
-        bucketService.uploadBirdObject(key, data, toContentType(mimeType), CACHE);
+        bucketService.uploadSightingObject(keyWithinBucket, data, toContentType(mimeType), CACHE);
 
         sightingRepository.save(sightingEntity);
 
@@ -98,16 +94,14 @@ public class SightingService {
         log.info("Se sumaron {} puntos al usuario {} por avistamiento de {}",
                 pointsAdded, userEntity.getEmail(), birdEntity.getName());
 
-        
         missionService.checkAndUpdateMissions(userEntity, birdEntity, sightingEntity);
-
-        
         achievementService.checkAndUpdateAchievements(userEntity, birdEntity, sightingEntity);
     }
 
+
     public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest req) {
         String slugBird = Slugs.snake(req.getBirdName());
-        String prefix = req.getEmail() + "/" + slugBird + "/";
+        String prefix = req.getEmail() + "/" + slugBird + "/"; // sin "sightings/" al inicio
 
         var items = bucketService.listSightingImageUrls(prefix, Integer.MAX_VALUE);
         return SightingImagesByEmailResponse.builder()
@@ -115,6 +109,9 @@ public class SightingService {
                 .build();
     }
 
+    // ==========================
+    // Avistajes por usuario (DB)
+    // ==========================
     public SightingByUserResponse getSightingsByUser(String email) {
         validateIfEmailExists(email);
 
@@ -129,6 +126,9 @@ public class SightingService {
                 .build();
     }
 
+    // =============================================================
+    // Avistajes “míos” y “de otros” para un ave (con URLs públicas)
+    // =============================================================
     public SightingsForBirdResponse getSightingsMineAndOthers(String email, String birdName) {
         userRepository.findByEmail(email).orElseThrow(() -> {
             log.warn("No user found for email: {}", email);
@@ -147,15 +147,14 @@ public class SightingService {
                 .findRarityNameByBirdName(canonicalBirdName)
                 .orElse("");
 
-        String profileB64 = bucketService.getBirdProfileBase64(canonicalBirdName);
-
         List<SightingEntity> mineEntities =
                 sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailAndDeletedFalseOrderByDateTimeDesc(canonicalBirdName, email);
 
         List<SightingEntity> othersEntities =
                 sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailNotAndDeletedFalseOrderByDateTimeDesc(canonicalBirdName, email);
 
-        Map<String, List<String>> imagesByUserCache = new HashMap<>();
+        // cache por email → lista de imágenes del bucket sightings
+        Map<String, List<SightingImageItem>> imagesByUserCache = new HashMap<>();
 
         List<SightingFullResponse> mine = mineEntities.stream()
                 .map(se -> toFullResponse(se, canonicalBirdName, commonName, rarity, imagesByUserCache))
@@ -169,12 +168,14 @@ public class SightingService {
                 .birdName(canonicalBirdName)
                 .commonName(commonName)
                 .rarity(rarity)
-                .profilePhotoBase64(profileB64)
                 .mine(mine)
                 .others(others)
                 .build();
     }
 
+    // ===================
+    // Búsqueda paginada
+    // ===================
     public Page<SightingResponse> searchSightings(String rarity, String color, String zone, String size,
                                                   int page, int sizePage) {
         Pageable pageable = PageRequest.of(page, sizePage, Sort.by(Sort.Direction.DESC, "dateTime"));
@@ -190,6 +191,9 @@ public class SightingService {
         return new PageImpl<>(responses, pageable, result.getTotalElements());
     }
 
+    // ===================
+    // Helpers privados
+    // ===================
     private String n(String v) {
         return (v != null && !v.isBlank()) ? v.trim() : null;
     }
@@ -198,21 +202,27 @@ public class SightingService {
                                                 String canonicalBirdName,
                                                 String commonName,
                                                 String rarity,
-                                                Map<String, List<String>> imagesByUserCache) {
+                                                Map<String, List<SightingImageItem>> imagesByUserCache) {
 
         String uEmail = se.getUser() != null ? se.getUser().getEmail() : null;
         String uName = se.getUser() != null ? se.getUser().getUsername() : null;
 
-        List<String> imgs = imagesByUserCache.computeIfAbsent(
+        // prefijo dentro del bucket sightings:
+        String slugBird = Slugs.of(canonicalBirdName);
+        String prefix = (uEmail != null ? uEmail : "unknown") + "/" + slugBird + "/";
+
+        List<SightingImageItem> imgs = imagesByUserCache.computeIfAbsent(
                 uEmail != null ? uEmail : "unknown",
-                k -> {
-                    String slugBird = Slugs.of(canonicalBirdName);
-                    String prefix = SIGHTINGS_PREFIX + (uEmail != null ? uEmail : "unknown") + "/" + slugBird + "/";
-                    return bucketService.listSightingImageUrls(prefix, 50).stream()
-                            .map(com.birdex.domain.SightingImageItem::getImageUrl)
-                            .toList();
-                }
+                k -> bucketService.listSightingImageUrls(prefix, 50)
         );
+
+        // cover = primera imagen disponible (si hay)
+        String coverThumb = null;
+        String coverImage = null;
+        if (imgs != null && !imgs.isEmpty()) {
+            coverThumb = imgs.get(0).getThumbUrl();
+            coverImage = imgs.get(0).getImageUrl();
+        }
 
         String locationString = formatLocation(se.getLatitude(), se.getLongitude(), se.getLocationText());
 
@@ -225,7 +235,9 @@ public class SightingService {
                 .dateTime(se.getDateTime())
                 .userEmail(uEmail)
                 .username(uName)
-                .imagesBase64(imgs)
+                .coverThumbUrl(coverThumb)
+                .coverImageUrl(coverImage)
+                .images(imgs)
                 .latitude(se.getLatitude())
                 .longitude(se.getLongitude())
                 .build();

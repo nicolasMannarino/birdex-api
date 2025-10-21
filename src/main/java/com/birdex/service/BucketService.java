@@ -40,10 +40,10 @@ public class BucketService {
 
     @PostConstruct
     void init() {
-        String endpoint  = bucketProperties.getEndpoint();
+        String endpoint = bucketProperties.getEndpoint();
         String accessKey = bucketProperties.getAccessKey();
         String secretKey = bucketProperties.getSecretKey();
-        String region    = bucketProperties.getRegion();
+        String region = bucketProperties.getRegion();
 
         log.info("Inicializando MinIO S3Client -> endpoint={}", endpoint);
 
@@ -59,20 +59,14 @@ public class BucketService {
                         .build())
                 .build();
 
-        // Asegurar buckets configurados (solo los declarados)
+        // Asegurar buckets configurados
         String birdsBucket = birdsBucket();
-        if (birdsBucket != null && !birdsBucket.isBlank()) {
-            ensureBucketExists(birdsBucket);
-        } else {
-            log.warn("minio.birds.bucket no configurado.");
-        }
+        if (birdsBucket != null && !birdsBucket.isBlank()) ensureBucketExists(birdsBucket);
+        else log.warn("minio.birds.bucket no configurado.");
 
         String sightingsBucket = sightingsBucket();
-        if (sightingsBucket != null && !sightingsBucket.isBlank()) {
-            ensureBucketExists(sightingsBucket);
-        } else {
-            log.warn("minio.sightings.bucket no configurado.");
-        }
+        if (sightingsBucket != null && !sightingsBucket.isBlank()) ensureBucketExists(sightingsBucket);
+        else log.warn("minio.sightings.bucket no configurado.");
     }
 
     private void ensureBucketExists(String bucket) {
@@ -94,6 +88,9 @@ public class BucketService {
         }
     }
 
+    // =========================
+    // BIRDS (perfiles)
+    // =========================
     public String getBirdProfilePublicUrl(String birdName, BirdImageSize size) {
         String bucket = birdsBucket();
         if (bucket == null || bucket.isBlank()) {
@@ -113,7 +110,7 @@ public class BucketService {
             keyToUse = resolveProfileKey(bucket, birdName);
             if (!objectExists(bucket, keyToUse)) {
                 log.warn("Imagen no encontrada para '{}': ni '{}' ni '{}'", birdName, preferredKey, keyToUse);
-                keyToUse = preferredKey; // fallback consistente
+                keyToUse = preferredKey;
             }
         }
         return buildPublicUrl(bucket, keyToUse);
@@ -227,31 +224,53 @@ public class BucketService {
         return slug + "/" + base + ".jpg";
     }
 
-    private String birdsBucket() {
-        return (bucketProperties.getBirds() != null)
-                ? bucketProperties.getBirds().getBucket()
-                : null;
+    // =========================
+    // SIGHTINGS (avistajes)
+    // =========================
+
+    /**
+     * Sube un objeto AL BUCKET DE SIGHTINGS. La clave es del tipo {email}/{slug-bird}/{archivo}.
+     */
+    public void uploadSightingObject(String key, byte[] data, String contentType, String cacheControl) {
+        String bucket = sightingsBucket();
+        if (bucket == null || bucket.isBlank()) {
+            throw new IllegalStateException("Config 'minio.sightings.bucket' vacío o nulo");
+        }
+        try {
+            PutObjectRequest.Builder pb = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .contentType(contentType);
+            if (cacheControl != null && !cacheControl.isBlank()) {
+                pb.cacheControl(cacheControl);
+            }
+            s3.putObject(pb.build(), RequestBody.fromBytes(data));
+            log.info("Subido '{}' a bucket sightings '{}' ({} bytes)", key, bucket, data.length);
+        } catch (Exception e) {
+            throw new RuntimeException("No se pudo subir sightings/" + key, e);
+        }
     }
 
-    private String sightingsBucket() {
-        return (bucketProperties.getSightings() != null)
-                ? bucketProperties.getSightings().getBucket()
-                : null;
-    }
-
-    private String profileBaseName() {
-        return (bucketProperties.getBirds() != null && bucketProperties.getBirds().getProfileObjectName() != null)
-                ? bucketProperties.getBirds().getProfileObjectName()
-                : "profile";
-    }
-
+    /**
+     * Devuelve URLs públicas (thumb e image) de los objetos de un prefijo dentro del bucket de sightings.
+     */
     public List<SightingImageItem> listSightingImageUrls(String prefix, int maxItems) {
         String bucket = sightingsBucket();
         if (bucket == null || bucket.isBlank()) {
             throw new IllegalStateException("Config 'minio.sightings.bucket' vacío o nulo");
         }
 
-        List<SightingImageItem> out = new ArrayList<>();
+        class Item {
+            String key;
+            java.time.Instant lastModified;
+
+            Item(String key, java.time.Instant lm) {
+                this.key = key;
+                this.lastModified = lm;
+            }
+        }
+
+        List<Item> keys = new ArrayList<>();
         try {
             ListObjectsV2Request req = ListObjectsV2Request.builder()
                     .bucket(bucket)
@@ -261,26 +280,43 @@ public class BucketService {
             for (var page : s3.listObjectsV2Paginator(req)) {
                 for (S3Object obj : page.contents()) {
                     String key = obj.key();
-                    if (!isImageKey(key)) continue;
-
-                    String thumbKey = variantKey(key, "_256");
-                    String imageKey = variantKey(key, "_600");
-
-                    String keyForThumb = objectExists(bucket, thumbKey) ? thumbKey : key;
-                    String keyForImage = objectExists(bucket, imageKey) ? imageKey : key;
-
-                    out.add(new SightingImageItem(
-                            buildPublicUrl(bucket, keyForThumb),
-                            buildPublicUrl(bucket, keyForImage)
-                    ));
-
-                    if (out.size() >= maxItems) return out;
+                    if (isImageKey(key)) {
+                        keys.add(new Item(key, obj.lastModified()));
+                    }
                 }
+            }
+
+            // más recientes primero
+            keys.sort((a, b) -> b.lastModified.compareTo(a.lastModified));
+
+            List<SightingImageItem> out = new ArrayList<>();
+            for (Item it : keys) {
+                String key = it.key;
+
+                String thumbKey = variantKey(key, "_256");
+                String imageKey = variantKey(key, "_600");
+
+                String keyForThumb = objectExists(bucket, thumbKey) ? thumbKey : key;
+                String keyForImage = objectExists(bucket, imageKey) ? imageKey : key;
+
+                out.add(new SightingImageItem(
+                        buildPublicUrl(bucket, keyForThumb),
+                        buildPublicUrl(bucket, keyForImage)
+                ));
+
+                if (out.size() >= maxItems) break;
             }
             return out;
         } catch (Exception e) {
             throw new RuntimeException("No se pudieron listar imágenes en sightings bajo '" + prefix + "'", e);
         }
+    }
+
+    /**
+     * Helper opcional para construir la URL pública de un objeto del bucket de sightings.
+     */
+    public String buildSightingPublicUrl(String key) {
+        return buildPublicUrl(sightingsBucket(), key);
     }
 
     // =========================
@@ -310,6 +346,24 @@ public class BucketService {
             enc.append(java.net.URLEncoder.encode(segments[i], java.nio.charset.StandardCharsets.UTF_8));
         }
         return String.format("%s/%s/%s", base, bucket, enc.toString());
+    }
+
+    private String birdsBucket() {
+        return (bucketProperties.getBirds() != null)
+                ? bucketProperties.getBirds().getBucket()
+                : null;
+    }
+
+    private String sightingsBucket() {
+        return (bucketProperties.getSightings() != null)
+                ? bucketProperties.getSightings().getBucket()
+                : null;
+    }
+
+    private String profileBaseName() {
+        return (bucketProperties.getBirds() != null && bucketProperties.getBirds().getProfileObjectName() != null)
+                ? bucketProperties.getBirds().getProfileObjectName()
+                : "profile";
     }
 
     private static String slugify(String input) {
@@ -344,6 +398,7 @@ public class BucketService {
             case ".gif" -> "image/gif";
             case ".bmp" -> "image/bmp";
             case ".tif", ".tiff" -> "image/tiff";
+            case ".jpg", ".jpeg" -> "image/jpeg";
             default -> "image/jpeg";
         };
     }
@@ -356,6 +411,7 @@ public class BucketService {
             case "image/gif" -> ".gif";
             case "image/bmp" -> ".bmp";
             case "image/tiff" -> ".tiff";
+            case "image/jpg", "image/jpeg" -> ".jpg";
             default -> ".jpg";
         };
     }
@@ -379,8 +435,8 @@ public class BucketService {
         }
 
         String slug = slugify(birdName);
-        String ext  = extFromContentType(contentType);
-        String key  = slug + "/" + profileBaseName() + ext;
+        String ext = extFromContentType(contentType);
+        String key = slug + "/" + profileBaseName() + ext;
 
         byte[] bytes = Base64.getDecoder().decode(
                 (base64.startsWith("data:") ? base64.substring(base64.indexOf(',') + 1) : base64)
