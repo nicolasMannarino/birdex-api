@@ -79,7 +79,7 @@ public class SightingService {
                 .bird(birdEntity)
                 .build();
 
-        sightingRepository.save(sightingEntity);
+        sightingEntity = sightingRepository.save(sightingEntity);
 
         String mimeType = FileMetadataExtractor.extractMimeType(request.getBase64());
         byte[] data = FileMetadataExtractor.extractData(request.getBase64());
@@ -113,11 +113,30 @@ public class SightingService {
 
     public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest req) {
         String slugBird = Slugs.snake(req.getBirdName());
-        String prefix = req.getEmail() + "/" + slugBird + "/"; // sin "sightings/" al inicio
+        
+        UserEntity user = userRepository.findByEmail(req.getEmail()).orElseThrow(() -> {
+            log.warn("No user found for email: {}", req.getEmail());
+            return new UserNotFoundException(req.getEmail());
+        });
 
-        var items = bucketService.listSightingImageUrls(prefix, Integer.MAX_VALUE);
+        BirdEntity bird = birdRepository.findByName(req.getBirdName()).orElseThrow(() -> {
+            log.warn("No bird found for name: {}", req.getBirdName());
+            return new UserNotFoundException(req.getBirdName());
+        });
+
+        List<UUID> sightningIDList = sightingRepository.findIdsByBirdIdAndUserId(bird.getBirdId(), user.getUserId());
+        List<List<SightingImageItem>> sightingImageItems = new ArrayList<>();
+
+        for (UUID uuid : sightningIDList) {
+            String prefix = req.getEmail() + "/" + slugBird + "/" + uuid + "/"; // sin "sightings/" al inicio
+            var items = bucketService.listSightingImageUrls(prefix, Integer.MAX_VALUE);
+
+            sightingImageItems.add(items);
+        }
+
+        
         return SightingImagesByEmailResponse.builder()
-                .images(items)
+                .images(sightingImageItems)
                 .build();
     }
 

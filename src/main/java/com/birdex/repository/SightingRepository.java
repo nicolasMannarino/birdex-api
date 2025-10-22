@@ -56,4 +56,16 @@ public interface SightingRepository extends JpaRepository<SightingEntity, UUID> 
         """)
     List<SightingEntity> findAllOrderByBirdAndDateTimeDesc();
     void deleteAllByIdInBatch(Iterable<UUID> ids);
+
+    // Variante por IDs (asumiendo birdId y userId son UUID)
+    @Query("""
+        select s.sightingId
+        from SightingEntity s
+        where s.bird.birdId = :birdId
+          and s.user.userId = :userId
+          and s.deleted = false
+        order by s.dateTime desc
+    """)
+    List<UUID> findIdsByBirdIdAndUserId(@Param("birdId") UUID birdId,
+                                        @Param("userId") UUID userId);
 }

@@ -12,5 +12,5 @@ import java.util.List;
 @Schema(name = "SightingImagesByEmailResponse", description = "URLs públicas de imágenes de avistajes")
 public class SightingImagesByEmailResponse {
     @ArraySchema(arraySchema = @Schema(description = "Listado de imágenes (thumb + image)"))
-    private List<SightingImageItem> images = new ArrayList<>();
+    private List<List<SightingImageItem>> images = new ArrayList<>();
 }
