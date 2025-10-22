@@ -179,21 +179,21 @@ public class SightingService {
                 .orElse("");
 
         List<SightingEntity> mineEntities =
-                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailAndDeletedFalseOrderByDateTimeDesc(canonicalBirdName, email);
+                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailAndDeletedFalseOrderByDateTimeDesc(
+                        canonicalBirdName, email);
 
         List<SightingEntity> othersEntities =
-                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailNotAndDeletedFalseOrderByDateTimeDesc(canonicalBirdName, email);
+                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailNotAndDeletedFalseOrderByDateTimeDesc(
+                        canonicalBirdName, email);
 
-        // cache por email → lista de imágenes del bucket sightings
-        Map<String, List<SightingImageItem>> imagesByUserCache = new HashMap<>();
-
+        // Importante: ya NO cacheamos por email. Las fotos se buscan por sightingId.
         List<SightingFullResponse> mine = mineEntities.stream()
-                .map(se -> toFullResponse(se, canonicalBirdName, commonName, rarity, imagesByUserCache))
-                .collect(Collectors.toList());
+                .map(se -> toFullResponseOnlyThisSighting(se, canonicalBirdName, commonName, rarity))
+                .toList();
 
         List<SightingFullResponse> others = othersEntities.stream()
-                .map(se -> toFullResponse(se, canonicalBirdName, commonName, rarity, imagesByUserCache))
-                .collect(Collectors.toList());
+                .map(se -> toFullResponseOnlyThisSighting(se, canonicalBirdName, commonName, rarity))
+                .toList();
 
         return SightingsForBirdResponse.builder()
                 .birdName(canonicalBirdName)
@@ -202,6 +202,59 @@ public class SightingService {
                 .mine(mine)
                 .others(others)
                 .build();
+    }
+
+    /**
+     * Construye el response de un único avistaje y SOLO sus imágenes.
+     * Prefijo: <email>/<slug(birdName)>/<sightingId>/
+     */
+    private SightingFullResponse toFullResponseOnlyThisSighting(SightingEntity se,
+                                                                String canonicalBirdName,
+                                                                String commonName,
+                                                                String rarity) {
+
+        String uEmail = se.getUser() != null ? se.getUser().getEmail() : null;
+        String uName  = se.getUser() != null ? se.getUser().getUsername() : null;
+
+        UUID sightingId = se.getSightingId();
+        String slugBird = Slugs.of(canonicalBirdName); // mismo slug que usás al subir
+        String prefix   = (uEmail != null ? uEmail : "unknown")
+                + "/" + slugBird
+                + "/" + sightingId + "/";
+
+        // Traer imágenes del BUCKET solo para ESTE avistaje
+        List<SightingImageItem> raw = bucketService.listSightingImageUrls(prefix, 50);
+
+        // Filtro defensivo por si el bucket devuelve de más
+        String needle = "/" + sightingId + "/";
+        List<SightingImageItem> imgs = raw == null ? List.of() : raw.stream()
+                .filter(it -> contains(it.getThumbUrl(), needle) || contains(it.getImageUrl(), needle))
+                .toList();
+
+        String coverThumb = imgs.isEmpty() ? null : imgs.get(0).getThumbUrl();
+        String coverImage = imgs.isEmpty() ? null : imgs.get(0).getImageUrl();
+
+        String locationString = formatLocation(se.getLatitude(), se.getLongitude(), se.getLocationText());
+
+        return SightingFullResponse.builder()
+                .sightingId(sightingId)
+                .birdName(canonicalBirdName)
+                .commonName(commonName)
+                .rarity(rarity)
+                .location(locationString)
+                .dateTime(se.getDateTime())
+                .userEmail(uEmail)
+                .username(uName)
+                .coverThumbUrl(coverThumb)
+                .coverImageUrl(coverImage)
+                .images(imgs)                 // ← ahora sólo del folder del sighting
+                .latitude(se.getLatitude())
+                .longitude(se.getLongitude())
+                .build();
+    }
+
+    private static boolean contains(String url, String needle) {
+        return url != null && url.contains(needle);
     }
 
     // ===================
