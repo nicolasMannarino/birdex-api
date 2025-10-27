@@ -252,7 +252,9 @@ public class BucketService {
     }
 
     /**
-     * Devuelve URLs públicas (thumb e image) de los objetos de un prefijo dentro del bucket de sightings.
+     * Devuelve URLs públicas (thumb e image) de los objetos (imágenes, videos y audio .mp3) de un prefijo.
+     * - Imágenes: intenta variantes _256 / _600; si no existen usa el original.
+     * - Videos/Audio(.mp3): thumb = poster si existe (<nombre>_poster.jpg o <nombre>.jpg); imageUrl = el propio archivo.
      */
     public List<SightingImageItem> listSightingImageUrls(String prefix, int maxItems) {
         String bucket = sightingsBucket();
@@ -263,11 +265,7 @@ public class BucketService {
         class Item {
             String key;
             java.time.Instant lastModified;
-
-            Item(String key, java.time.Instant lm) {
-                this.key = key;
-                this.lastModified = lm;
-            }
+            Item(String key, java.time.Instant lm) { this.key = key; this.lastModified = lm; }
         }
 
         List<Item> keys = new ArrayList<>();
@@ -280,7 +278,7 @@ public class BucketService {
             for (var page : s3.listObjectsV2Paginator(req)) {
                 for (S3Object obj : page.contents()) {
                     String key = obj.key();
-                    if (isImageKey(key)) {
+                    if (isMediaKey(key)) {
                         keys.add(new Item(key, obj.lastModified()));
                     }
                 }
@@ -293,22 +291,34 @@ public class BucketService {
             for (Item it : keys) {
                 String key = it.key;
 
-                String thumbKey = variantKey(key, "_256");
-                String imageKey = variantKey(key, "_600");
+                if (isImageKey(key)) {
+                    // IMAGEN
+                    String thumbKey = variantKey(key, "_256");
+                    String imageKey = variantKey(key, "_600");
 
-                String keyForThumb = objectExists(bucket, thumbKey) ? thumbKey : key;
-                String keyForImage = objectExists(bucket, imageKey) ? imageKey : key;
+                    String keyForThumb = objectExists(bucket, thumbKey) ? thumbKey : key;
+                    String keyForImage = objectExists(bucket, imageKey) ? imageKey : key;
 
-                out.add(new SightingImageItem(
-                        buildPublicUrl(bucket, keyForThumb),
-                        buildPublicUrl(bucket, keyForImage)
-                ));
+                    out.add(new SightingImageItem(
+                            buildPublicUrl(bucket, keyForThumb),
+                            buildPublicUrl(bucket, keyForImage)
+                    ));
+                } else if (isVideo(key) || isAudio(key)) {
+                    // VIDEO o AUDIO (.mp3)
+                    String posterKey = resolvePosterKeyIfAny(bucket, key);
+                    String thumbUrl = posterKey != null ? buildPublicUrl(bucket, posterKey) : null;
+
+                    out.add(new SightingImageItem(
+                            thumbUrl != null ? thumbUrl : buildPublicUrl(bucket, key),
+                            buildPublicUrl(bucket, key)
+                    ));
+                }
 
                 if (out.size() >= maxItems) break;
             }
             return out;
         } catch (Exception e) {
-            throw new RuntimeException("No se pudieron listar imágenes en sightings bajo '" + prefix + "'", e);
+            throw new RuntimeException("No se pudieron listar media en sightings bajo '" + prefix + "'", e);
         }
     }
 
@@ -416,9 +426,24 @@ public class BucketService {
         };
     }
 
+    // --- Helpers de tipo de archivo ---
     private static boolean isImageKey(String key) {
-        String lower = key.toLowerCase();
+        String lower = key.toLowerCase(Locale.ROOT);
         return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp");
+    }
+
+    private static boolean isVideo(String key) {
+        String lower = key.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".webm") || lower.endsWith(".mkv");
+    }
+
+    private static boolean isAudio(String key) {
+        String lower = key.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".mp3"); // pedido específico
+    }
+
+    private static boolean isMediaKey(String key) {
+        return isImageKey(key) || isVideo(key) || isAudio(key);
     }
 
     private static String variantKey(String key, String suffix) {
@@ -426,6 +451,23 @@ public class BucketService {
         int dot = key.lastIndexOf('.');
         if (dot <= 0) return key + suffix;
         return key.substring(0, dot) + suffix + key.substring(dot);
+    }
+
+    private static String replaceExt(String key, String newExt) {
+        int dot = key.lastIndexOf('.');
+        if (dot <= 0) return key + newExt;
+        return key.substring(0, dot) + newExt;
+    }
+
+    /** Para videos/audio: intentamos 1) sufijo _poster.jpg  2) mismo nombre con .jpg */
+    private String resolvePosterKeyIfAny(String bucket, String mediaKey) {
+        String candidate1 = replaceExt(variantKey(mediaKey, "_poster"), ".jpg");
+        if (objectExists(bucket, candidate1)) return candidate1;
+
+        String candidate2 = replaceExt(mediaKey, ".jpg");
+        if (objectExists(bucket, candidate2)) return candidate2;
+
+        return null;
     }
 
     public String putBirdProfileBase64(String birdName, String base64, String contentType) {
