@@ -12,8 +12,10 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/detect")
@@ -24,65 +26,53 @@ public class VisualAnalysisController {
     @Autowired
     private DetectionService detectionService;
 
-    @PostMapping(consumes = "application/json", produces = "application/json")
+    @PostMapping(
+            path = "/image",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
     @Operation(
-            summary = "Detectar ave en imagen",
-            description = "Recibe una imagen en base64 y devuelve la etiqueta de especie detectada y el nivel de confianza."
+            summary = "Detectar ave en imagen (multipart/form-data)",
+            description = "Recibe una imagen (campo 'file') y devuelve etiqueta y confianza."
     )
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Detección exitosa",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = BirdDetectResponse.class),
-                            examples = @ExampleObject(value = """
-                  { "label": "Turdus rufiventris", "trustLevel": 0.91 }
-                """)
-                    )
-            ),
+            @ApiResponse(responseCode = "200", description = "OK",
+                    content = @Content(schema = @Schema(implementation = BirdDetectResponse.class))),
             @ApiResponse(responseCode = "400", description = "Request inválido",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "500", description = "Error interno",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    public ResponseEntity< BirdDetectResponse > analyze(
-            @RequestBody(
-                    required = true,
-                    description = "Imagen a analizar",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = BirdDetectRequest.class),
-                            examples = @ExampleObject(value = """
-                  { "fileBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..." }
-                """)
-                    )
-            )
-            @org.springframework.web.bind.annotation.RequestBody BirdDetectRequest request
-    ) {
-        BirdDetectResponse response = detectionService.detect(request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<BirdDetectResponse> analyzeImage(@RequestPart("file") MultipartFile file) {
+        return ResponseEntity.ok(detectionService.detect(file));
     }
 
 
-    @PostMapping(value = "/video", consumes = "application/json", produces = "application/json")
-    @Operation(summary = "Detectar ave en video",
-            description = "Recibe un video en base64 (hasta 15s). Muestrea frames y devuelve lista y mejor resultado.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200",
-                    description = "OK",
-                    content = @Content(schema = @Schema(implementation = BirdVideoDetectResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Request inválido",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "500", description = "Error interno",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    })
+    @PostMapping(
+            path = "/video",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    @Operation(
+            summary = "Detectar ave en video (multipart/form-data)",
+            description = "Recibe un video corto (campo 'file'). Muestrea frames y devuelve lista y mejor resultado."
+    )
+    @RequestBody(
+            required = true,
+            content = @Content(
+                    mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                    schema = @Schema(type = "object",
+                            requiredProperties = {"file"}
+                    )
+            )
+    )
     public ResponseEntity<BirdVideoDetectResponse> analyzeVideo(
-            @org.springframework.web.bind.annotation.RequestBody BirdVideoDetectRequest request
+            @RequestPart("file") MultipartFile file,
+            @RequestPart(name = "sampleFps", required = false) Integer sampleFps,
+            @RequestPart(name = "stopOnFirstAbove", required = false) Boolean stopOnFirstAbove
     ) {
-        if (request == null || request.getFileBase64() == null || request.getFileBase64().isBlank()) {
-            throw new IllegalArgumentException("Body inválido: falta fileBase64");
-        }
-        return ResponseEntity.ok(detectionService.detectVideo(request));
+        int fps = (sampleFps == null || sampleFps < 1) ? 1 : sampleFps;
+        boolean stop = stopOnFirstAbove != null && stopOnFirstAbove;
+        return ResponseEntity.ok(detectionService.detectVideo(file, fps, stop));
     }
 }
