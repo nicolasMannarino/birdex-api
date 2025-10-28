@@ -15,12 +15,17 @@ public class BucketProperties {
 
     private Birds birds;
     private Sightings sightings;
+    private Users users;
 
     @Data public static class Birds {
         private String bucket;
         private String profileObjectName;
     }
     @Data public static class Sightings {
+        private String bucket;
+    }
+
+    @Data public static class Users {
         private String bucket;
     }
 }

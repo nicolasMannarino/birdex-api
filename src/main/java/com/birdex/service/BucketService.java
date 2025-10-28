@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -33,6 +35,9 @@ public class BucketService {
 
     private final BucketProperties bucketProperties;
     private S3Client s3;
+
+    private static final String PROFILE_BASE_NAME = "profile";
+    private static final String CACHE_IMMUTABLE = "public, max-age=31536000, immutable";
 
     public BucketService(BucketProperties bucketProperties) {
         this.bucketProperties = bucketProperties;
@@ -67,6 +72,16 @@ public class BucketService {
         String sightingsBucket = sightingsBucket();
         if (sightingsBucket != null && !sightingsBucket.isBlank()) ensureBucketExists(sightingsBucket);
         else log.warn("minio.sightings.bucket no configurado.");
+
+        String usersBucket = usersBucket();
+        if (usersBucket != null && !usersBucket.isBlank()) ensureBucketExists(usersBucket);
+        else log.warn("minio.users.bucket no configurado.");
+    }
+
+    private String usersBucket() {
+        return (bucketProperties.getUsers() != null)
+                ? bucketProperties.getUsers().getBucket()
+                : null;
     }
 
     private void ensureBucketExists(String bucket) {
@@ -86,6 +101,171 @@ public class BucketService {
                 throw e;
             }
         }
+    }
+
+    // =========================
+    // USERS (fotos de perfil)
+    // =========================
+
+    /**
+     * Sube la foto base64 de un usuario al bucket de users y retorna la key final (p.ej. users/{email}/profile.jpg).
+     */
+    public String uploadUserProfileBase64(String email, String base64, String contentType, boolean generateVariants) {
+        String bucket = usersBucket();
+        if (bucket == null || bucket.isBlank()) {
+            throw new IllegalStateException("Config 'minio.users.bucket' vacío o nulo");
+        }
+        if (base64 == null || base64.isBlank()) {
+            throw new IllegalArgumentException("Base64 vacío para foto de perfil");
+        }
+
+        // Tomamos snapshot de lo que existe ANTES de subir
+        List<String> existing = listUserProfileKeys(bucket, email);
+
+        ContentAndPayload cap = extractContentTypeAndPayload(base64, contentType);
+        String ext = extFromContentType(cap.contentType);
+        String baseKey = userProfileBaseKey(email);         // <email>/profile
+        String keyOrig = baseKey + ext;                     // <email>/profile.jpg (o .png/.webp)
+        String key256 = variantKey(keyOrig, "_256");
+        String key600 = variantKey(keyOrig, "_600");
+
+        byte[] bytes = Base64.getDecoder().decode(cap.payload.replaceAll("\\s", "").getBytes(StandardCharsets.UTF_8));
+
+        // 1) Subimos el original
+        putObject(bucket, keyOrig, bytes, cap.contentType, CACHE_IMMUTABLE);
+
+        // 2) (Opcional) variantes
+        if (generateVariants) {
+            // Aquí iría el resize real; placeholder con el mismo buffer
+            putObject(bucket, key256, bytes, cap.contentType, CACHE_IMMUTABLE);
+            putObject(bucket, key600, bytes, cap.contentType, CACHE_IMMUTABLE);
+        }
+
+        // 3) Borramos lo anterior (si existía) EXCEPTO las keys recién subidas
+        var keep = new java.util.HashSet<String>();
+        keep.add(keyOrig);
+        if (generateVariants) {
+            keep.add(key256);
+            keep.add(key600);
+        }
+
+        for (String oldKey : existing) {
+            if (!keep.contains(oldKey) && objectExists(bucket, oldKey)) {
+                try {
+                    s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(oldKey).build());
+                    log.info("Eliminado perfil anterior '{}'", oldKey);
+                } catch (Exception e) {
+                    log.warn("No se pudo borrar '{}': {}", oldKey, e.getMessage());
+                }
+            }
+        }
+
+        log.info("Foto de perfil actualizada para {} -> '{}'", email, keyOrig);
+        return keyOrig;
+    }
+
+    /**
+     * Retorna URL pública de la foto de perfil del usuario para un size dado: "orig" | "256" | "600".
+     */
+    public String getUserProfilePublicUrl(String email, String size) {
+        String bucket = usersBucket();
+        if (bucket == null || bucket.isBlank()) {
+            throw new IllegalStateException("Config 'minio.users.bucket' vacío o nulo");
+        }
+        String baseKeyJpg = userProfileBaseKey(email) + ".jpg";
+        String baseKeyPng = userProfileBaseKey(email) + ".png";
+        String baseKeyWebp = userProfileBaseKey(email) + ".webp";
+
+        // Detectar cuál existe como original
+        String origKey = pickFirstExisting(bucket, List.of(baseKeyJpg, baseKeyPng, baseKeyWebp));
+        if (origKey == null) return null; // no hay foto
+
+        if ("256".equals(size)) {
+            String k = variantKey(origKey, "_256");
+            return buildPublicUrl(bucket, objectExists(bucket, k) ? k : origKey);
+        } else if ("600".equals(size)) {
+            String k = variantKey(origKey, "_600");
+            return buildPublicUrl(bucket, objectExists(bucket, k) ? k : origKey);
+        }
+        // default "orig"
+        return buildPublicUrl(bucket, origKey);
+    }
+
+    /**
+     * Borra todas las variantes de la foto del usuario.
+     */
+    public void deleteUserProfile(String email) {
+        String bucket = usersBucket();
+        if (bucket == null || bucket.isBlank()) return;
+
+        List<String> keys = listUserProfileKeys(bucket, email);
+        for (String k : keys) {
+            try {
+                s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(k).build());
+            } catch (Exception e) {
+                log.warn("No se pudo borrar '{}': {}", k, e.getMessage());
+            }
+        }
+    }
+
+    private List<String> listUserProfileKeys(String bucket, String email) {
+        String prefix = userProfileBaseKey(email); // <email>/profile
+        List<String> keys = new ArrayList<>();
+
+        ListObjectsV2Request req = ListObjectsV2Request.builder()
+                .bucket(bucket)
+                .prefix(prefix)
+                .build();
+
+        for (var page : s3.listObjectsV2Paginator(req)) {
+            for (S3Object obj : page.contents()) {
+                String k = obj.key();
+                if (k != null && !k.endsWith("/")) {
+                    keys.add(k);
+                }
+            }
+        }
+        return keys;
+    }
+
+    private String userProfileBaseKey(String email) {
+        String safeEmail = email == null ? "unknown" : email.trim();
+        return safeEmail + "/" + PROFILE_BASE_NAME;
+    }
+
+    private ContentAndPayload extractContentTypeAndPayload(String base64, String fallbackContentType) {
+        // data:<mime>;base64,<payload>
+        Pattern p = Pattern.compile("^data:([\\w/+-\\.]+);base64,(.+)$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher m = p.matcher(base64);
+        if (m.find()) {
+            String ct = m.group(1);
+            String payload = m.group(2);
+            return new ContentAndPayload(ct, payload);
+        }
+        String ct = (fallbackContentType != null && !fallbackContentType.isBlank()) ? fallbackContentType : "image/jpeg";
+        return new ContentAndPayload(ct, base64);
+    }
+
+    private record ContentAndPayload(String contentType, String payload) {
+    }
+
+    private void putObject(String bucket, String key, byte[] data, String contentType, String cacheControl) {
+        PutObjectRequest.Builder pb = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentType(contentType);
+        if (cacheControl != null && !cacheControl.isBlank()) {
+            pb.cacheControl(cacheControl);
+        }
+        s3.putObject(pb.build(), RequestBody.fromBytes(data));
+        log.info("Subido '{}' a bucket '{}' ({} bytes)", key, bucket, data.length);
+    }
+
+    private String pickFirstExisting(String bucket, List<String> keys) {
+        for (String k : keys) {
+            if (objectExists(bucket, k)) return k;
+        }
+        return null;
     }
 
     // =========================

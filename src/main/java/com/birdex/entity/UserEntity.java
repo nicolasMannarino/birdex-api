@@ -44,16 +44,11 @@ public class UserEntity {
     @Builder.Default
     private String levelName = "Novato";
 
-    @Lob
-    @Basic(fetch = FetchType.LAZY)
-    @ToString.Exclude
-    @Column(name = "profile_photo_base64", columnDefinition = "TEXT")
-    private String profilePhotoBase64;
+    @Column(name = "profile_photo_key")
+    private String profilePhotoKey;
 
 
-    public void updateProfilePhotoBase64(String photo) {
-        this.profilePhotoBase64 = photo;
-    }
+    public void updateProfilePhotoKey(String key) { this.profilePhotoKey = key; }
 
     public void updateUsername(String newName) {
         this.username = newName;

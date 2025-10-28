@@ -38,10 +38,14 @@ services:
       '
       mc alias set local http://minio:9000 minioadmin minioadmin &&
       mc mb --ignore-existing local/birdex-bucket &&
+      mc mb --ignore-existing local/users &&
       mc anonymous set download local/birdex-bucket &&
+      mc anonymous set download local/users &&
       echo "[{\"AllowedOrigin\":[\"*\"],\"AllowedMethod\":[\"GET\",\"HEAD\"],\"AllowedHeader\":[\"*\"],\"ExposeHeader\":[\"ETag\",\"Content-Length\",\"Content-Type\"],\"MaxAgeSeconds\":3000}]" > /cors.json &&
       mc cors set local/birdex-bucket /cors.json &&
+      mc cors set local/users /cors.json &&
       mc cors info local/birdex-bucket &&
+      mc cors info local/users &&
       echo "MinIO setup OK"
       '
     networks:

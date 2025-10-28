@@ -4,6 +4,7 @@ import com.birdex.domain.UserPhotoRequest;
 import com.birdex.domain.UserResponse;
 import com.birdex.domain.UsernameRequest;
 import com.birdex.dto.SightingDto;
+import com.birdex.entity.LevelEntity;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
 import com.birdex.exception.UserAlreadyExistsException;
@@ -27,6 +28,7 @@ public class UserService {
     private final SightingRepository sightingRepository;
     private final UserRepository userRepository;
     private final LevelRepository levelRepository;
+    private final BucketService bucketService;
 
     private static final String MSG_USER_NOT_FOUND_BY_EMAIL = "No encontramos una cuenta registrada con ese correo.";
     private static final String MSG_USER_NOT_FOUND_BY_USERNAME = "No encontramos una cuenta registrada con ese usuario.";
@@ -46,11 +48,22 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException(MSG_USER_NOT_FOUND_BY_EMAIL));
 
         log.info("User founded. - {}", email);
-        //some validations??
 
-        user.updateProfilePhotoBase64(request.getPhoto());
+        if (request == null || request.getPhoto() == null || request.getPhoto().isBlank()) {
+            throw new IllegalArgumentException("La foto en base64 es obligatoria");
+        }
+
+        String key = bucketService.uploadUserProfileBase64(
+                email,
+                request.getPhoto(),
+                null,
+                false
+        );
+
+        user.updateProfilePhotoKey(key);
+
         userRepository.save(user);
-        log.info("Profile photo updated.");
+        log.info("Profile photo updated. key={}", key);
     }
 
     public void updateUsername(String email, UsernameRequest request) {
@@ -73,10 +86,16 @@ public class UserService {
 
     public UserResponse getUserInfo(String username) {
         log.info("Searching user with username: {}", username);
-        UserEntity user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UserNotFoundException(MSG_USER_NOT_FOUND_BY_EMAIL));
 
-        Integer xpRequired = levelRepository.findById(user.getLevel() + NEXT_LEVEL).orElseThrow(() -> new RuntimeException("")).getXpRequired();
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(MSG_USER_NOT_FOUND_BY_USERNAME));
+
+        Integer xpRequired = levelRepository.findById(user.getLevel() + NEXT_LEVEL)
+                .map(LevelEntity::getXpRequired)
+                .orElse(0);
+
+        String photoUrl = bucketService.getUserProfilePublicUrl(user.getEmail(), "600");
+        String thumbUrl = bucketService.getUserProfilePublicUrl(user.getEmail(), "256");
 
         log.info("User founded. - {}", username);
         return UserResponse.builder()
@@ -85,7 +104,8 @@ public class UserService {
                 .points(user.getPoints())
                 .level(user.getLevel())
                 .levelName(user.getLevelName())
-                .profilePhotoBase64(user.getProfilePhotoBase64())
+                .profilePhotoUrl(photoUrl)
+                .profilePhotoThumbUrl(thumbUrl)
                 .xpRequired(xpRequired)
                 .build();
     }

@@ -14,6 +14,7 @@ public class UserResponse {
     private Integer points;
     private Integer level;
     private String levelName;
-    private String profilePhotoBase64;
+    private String profilePhotoUrl;
+    private String profilePhotoThumbUrl;
     private Integer xpRequired;
 }
