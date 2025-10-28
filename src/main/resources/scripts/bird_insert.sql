@@ -129,15 +129,17 @@ WHERE password_hash IS NOT NULL
 -- ---------- SIGHTINGS ----------
 CREATE TABLE IF NOT EXISTS sightings (
     sighting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    latitude    NUMERIC(9,6) NOT NULL,
-    longitude   NUMERIC(9,6) NOT NULL,
+    latitude    NUMERIC(9,6),
+    longitude   NUMERIC(9,6),
     location_text TEXT,
     date_time  TIMESTAMP NOT NULL,
     user_id     UUID NOT NULL,
-    bird_id     UUID NOT NULL,
-    deleted               BOOLEAN    NOT NULL DEFAULT FALSE,
+    bird_id     UUID,
+    deleted     BOOLEAN    NOT NULL DEFAULT FALSE,
+    state       VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     CONSTRAINT chk_sight_lat CHECK (latitude BETWEEN -90 AND 90),
     CONSTRAINT chk_sight_lon CHECK (longitude BETWEEN -180 AND 180),
+    CONSTRAINT chk_sight_state CHECK (state IN ('PENDING', 'CONFIRMED', 'REJECTED')),
     CONSTRAINT fk_user  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     CONSTRAINT fk_birdS FOREIGN KEY (bird_id) REFERENCES birds(bird_id) ON DELETE CASCADE
 );

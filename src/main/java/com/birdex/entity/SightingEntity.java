@@ -56,4 +56,7 @@ public class SightingEntity {
     @Column(name = "deleted", nullable = false)
     @Builder.Default
     private boolean deleted = false;
+
+    @Column(name = "state", nullable = false, length = 20)
+    private String state;
 }
