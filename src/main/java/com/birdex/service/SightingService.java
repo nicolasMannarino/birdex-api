@@ -14,8 +14,6 @@ import com.birdex.repository.BirdRarityRepository;
 import com.birdex.repository.BirdRepository;
 import com.birdex.repository.SightingRepository;
 import com.birdex.repository.UserRepository;
-import com.birdex.utils.FileMetadataExtractor;
-import com.birdex.utils.FilenameGenerator;
 import com.birdex.utils.Slugs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +23,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
+
 
 @Service
 @Slf4j
@@ -120,7 +118,7 @@ public class SightingService {
 
     public SightingImagesByEmailResponse getSightingImagesByUserAndBirdName(SightingImageRequest req) {
         String slugBird = Slugs.snake(req.getBirdName());
-        
+
         UserEntity user = userRepository.findByEmail(req.getEmail()).orElseThrow(() -> {
             log.warn("No user found for email: {}", req.getEmail());
             return new UserNotFoundException(req.getEmail());
@@ -141,7 +139,7 @@ public class SightingService {
             sightingImageItems.add(items);
         }
 
-        
+
         return SightingImagesByEmailResponse.builder()
                 .images(sightingImageItems)
                 .build();
@@ -154,13 +152,55 @@ public class SightingService {
         validateIfEmailExists(email);
 
         List<SightingEntity> entities = sightingRepository.findByUserEmailAndDeletedFalse(email);
-        List<SightingDto> dtos = SightingMapper.toDtoList(entities);
 
-        List<SightingResponse> responses = buildResponseList(dtos);
-        sortList(responses);
+        // Mapear uno a uno, resolviendo portada por sightingId
+        List<SightingResponse> responses = entities.stream()
+                .map(se -> toSummaryWithCover(se))
+                .sorted(Comparator.comparing(SightingResponse::getDateTime,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
 
         return SightingByUserResponse.builder()
                 .sightingResponseList(responses)
+                .build();
+    }
+
+    /**
+     * Construye el resumen y resuelve coverThumbUrl/coverImageUrl SOLO
+     * desde el folder de este sighting: {email}/{slug(birdName)}/{sightingId}/
+     */
+    private SightingResponse toSummaryWithCover(SightingEntity se) {
+        String email = se.getUser() != null ? se.getUser().getEmail() : null;
+        String bName = se.getBird() != null ? se.getBird().getName() : null;          // canónico
+        String cName = se.getBird() != null ? se.getBird().getCommonName() : null;    // común
+        UUID sightingId = se.getSightingId();
+
+        // Rareza
+        String rarity = (bName != null)
+                ? birdRarityRepository.findRarityNameByBirdName(bName).orElse("")
+                : "";
+
+        // Prefijo específico del avistaje
+        String slugBird = Slugs.of(bName != null ? bName : "unknown");
+        String prefix = (email != null ? email : "unknown")
+                + "/" + slugBird
+                + "/" + sightingId + "/";
+
+        // Pedimos SOLO la primera media como “cover”
+        List<SightingImageItem> media = bucketService.listSightingImageUrls(prefix, 1);
+
+        String coverThumb = (media != null && !media.isEmpty()) ? media.get(0).getThumbUrl() : null;
+        String coverImage = (media != null && !media.isEmpty()) ? media.get(0).getImageUrl() : null;
+
+        return SightingResponse.builder()
+                .birdName(bName)
+                .commonName(cName)
+                .rarity(rarity)
+                .dateTime(se.getDateTime())
+                .latitude(se.getLatitude())
+                .longitude(se.getLongitude())
+                .coverThumbUrl(coverThumb)
+                .coverImageUrl(coverImage)
                 .build();
     }
 
@@ -221,11 +261,11 @@ public class SightingService {
                                                                 String rarity) {
 
         String uEmail = se.getUser() != null ? se.getUser().getEmail() : null;
-        String uName  = se.getUser() != null ? se.getUser().getUsername() : null;
+        String uName = se.getUser() != null ? se.getUser().getUsername() : null;
 
         UUID sightingId = se.getSightingId();
         String slugBird = Slugs.of(canonicalBirdName); // mismo slug que usás al subir
-        String prefix   = (uEmail != null ? uEmail : "unknown")
+        String prefix = (uEmail != null ? uEmail : "unknown")
                 + "/" + slugBird
                 + "/" + sightingId + "/";
 

@@ -263,9 +263,13 @@ public class BucketService {
         }
 
         class Item {
-            String key;
-            java.time.Instant lastModified;
-            Item(String key, java.time.Instant lm) { this.key = key; this.lastModified = lm; }
+            final String key;
+            final java.time.Instant lastModified;
+
+            Item(String key, java.time.Instant lm) {
+                this.key = key;
+                this.lastModified = lm;
+            }
         }
 
         List<Item> keys = new ArrayList<>();
@@ -322,12 +326,6 @@ public class BucketService {
         }
     }
 
-    /**
-     * Helper opcional para construir la URL pública de un objeto del bucket de sightings.
-     */
-    public String buildSightingPublicUrl(String key) {
-        return buildPublicUrl(sightingsBucket(), key);
-    }
 
     // =========================
     // Utilitarios comunes
@@ -408,7 +406,6 @@ public class BucketService {
             case ".gif" -> "image/gif";
             case ".bmp" -> "image/bmp";
             case ".tif", ".tiff" -> "image/tiff";
-            case ".jpg", ".jpeg" -> "image/jpeg";
             default -> "image/jpeg";
         };
     }
@@ -421,7 +418,6 @@ public class BucketService {
             case "image/gif" -> ".gif";
             case "image/bmp" -> ".bmp";
             case "image/tiff" -> ".tiff";
-            case "image/jpg", "image/jpeg" -> ".jpg";
             default -> ".jpg";
         };
     }
@@ -459,7 +455,9 @@ public class BucketService {
         return key.substring(0, dot) + newExt;
     }
 
-    /** Para videos/audio: intentamos 1) sufijo _poster.jpg  2) mismo nombre con .jpg */
+    /**
+     * Para videos/audio: intentamos 1) sufijo _poster.jpg  2) mismo nombre con .jpg
+     */
     private String resolvePosterKeyIfAny(String bucket, String mediaKey) {
         String candidate1 = replaceExt(variantKey(mediaKey, "_poster"), ".jpg");
         if (objectExists(bucket, candidate1)) return candidate1;

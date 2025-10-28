@@ -7,7 +7,8 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data @Builder
+@Data
+@Builder
 @Schema(name = "SightingResponse", description = "Resumen de avistaje")
 public class SightingResponse {
 
@@ -28,4 +29,10 @@ public class SightingResponse {
 
     @Schema(description = "Longitud del avistaje", example = "-58.381592")
     private BigDecimal longitude;
+
+    @Schema(description = "URL pública de la imagen/vista previa (thumbnail) del avistaje")
+    private String coverThumbUrl;
+
+    @Schema(description = "URL pública de la imagen/vista previa (600px) del avistaje")
+    private String coverImageUrl;
 }
