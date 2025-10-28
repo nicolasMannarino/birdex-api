@@ -16,7 +16,7 @@ from ultralytics.utils import LOGGER
 BASE_DIR     = os.path.dirname(__file__)
 MODEL_PATH   = os.path.join(BASE_DIR, "modelo_imagenes_birdex.pth")
 CLASSES_PATH = os.path.join(BASE_DIR, "birdex_clases.json")
-YOLO_PATH    = os.path.join(BASE_DIR, "yolov8m.pt")  # más rápido que 'm'
+YOLO_PATH    = os.path.join(BASE_DIR, "yolov8n.pt")  # más rápido que 'm'
 
 YOLO_IMGSZ   = int(os.getenv("YOLO_IMGSZ", "384"))   # ajustable por HW
 YOLO_CONF    = float(os.getenv("YOLO_CONF", "0.20"))
