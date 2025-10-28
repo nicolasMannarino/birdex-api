@@ -52,24 +52,23 @@ public class SightingController {
                             schema = @Schema(implementation = SightingRequest.class),
                             examples = {
                                     @ExampleObject(
-                                            name = "Con lat/lon",
-                                            value = """
+                                        value = """
                                         {
-                                          "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
-                                          "email": "user@example.com",
-                                          "birdName": "Turdus rufiventris",
-                                          "dateTime": "2025-09-06T17:07:45",
-                                          "latitude": -34.603722,
-                                          "longitude": -58.381592,
-                                          "locationText": "Parque Saavedra, CABA"
+                                        "sightingId": "a57f19f5-0e8b-4d8d-b2e0-23a749d26d1a",
+                                        "email": "user@example.com",
+                                        "birdName": "Turdus rufiventris",
+                                        "dateTime": "2025-09-06T17:07:45",
+                                        "latitude": -34.603722,
+                                        "longitude": -58.381592,
+                                        "locationText": "Parque Saavedra, CABA"
                                         }
                                         """
-                                    ),
+                                        ),
                                     @ExampleObject(
                                             name = "Solo locationText (sin lat/lon)",
                                             value = """
                                         {
-                                          "base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...",
+                                          "sightingId": "a57f19f5-0e8b-4d8d-b2e0-23a749d26d1a",
                                           "email": "user@example.com",
                                           "birdName": "Turdus rufiventris",
                                           "dateTime": "2025-09-06T17:07:45",

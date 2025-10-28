@@ -7,14 +7,18 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
 @Schema(name = "SightingRequest", description = "Payload para registrar un avistaje")
 public class SightingRequest {
 
-    @Schema(description = "Imagen en base64 (con o sin data URI)", example = "data:image/jpeg;base64,/9j/4AAQ...")
-    private String base64;
+  //  @Schema(description = "Imagen en base64 (con o sin data URI)", example = "data:image/jpeg;base64,/9j/4AAQ...")
+  //  private String base64;
+
+    @Schema(description = "Sighting ID", example = "57f19f5-0e8b-4d8d-b2e0-23a749d26d1a")
+    private UUID sightingId;
 
     @Schema(description = "Email del usuario", example = "user@example.com")
     private String email;

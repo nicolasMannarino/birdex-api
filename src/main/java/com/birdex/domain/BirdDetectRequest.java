@@ -15,4 +15,7 @@ public class BirdDetectRequest {
             example = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
     )
     private String fileBase64;
+
+    @Schema(description = "Email del usuario", example = "user@example.com")
+    private String email;
 }
