@@ -22,10 +22,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,7 +33,6 @@ public class BucketService {
     private final BucketProperties bucketProperties;
     private S3Client s3;
 
-    private static final String PROFILE_BASE_NAME = "profile";
     private static final String CACHE_IMMUTABLE = "public, max-age=31536000, immutable";
 
     public BucketService(BucketProperties bucketProperties) {
@@ -172,23 +168,44 @@ public class BucketService {
         if (bucket == null || bucket.isBlank()) {
             throw new IllegalStateException("Config 'minio.users.bucket' vacío o nulo");
         }
-        String baseKeyJpg = userProfileBaseKey(email) + ".jpg";
-        String baseKeyPng = userProfileBaseKey(email) + ".png";
-        String baseKeyWebp = userProfileBaseKey(email) + ".webp";
 
-        // Detectar cuál existe como original
-        String origKey = pickFirstExisting(bucket, List.of(baseKeyJpg, baseKeyPng, baseKeyWebp));
-        if (origKey == null) return null; // no hay foto
+        // 1) Listar todas las imágenes bajo <email>/
+        List<String> all = listUserProfileKeys(bucket, email);
+        if (all.isEmpty()) return null; // no hay foto
 
-        if ("256".equals(size)) {
-            String k = variantKey(origKey, "_256");
-            return buildPublicUrl(bucket, objectExists(bucket, k) ? k : origKey);
-        } else if ("600".equals(size)) {
-            String k = variantKey(origKey, "_600");
-            return buildPublicUrl(bucket, objectExists(bucket, k) ? k : origKey);
+        // 2) Elegir la más reciente por lastModified (por si hubiera más de una)
+        String chosen = null;
+        java.time.Instant latestTs = null;
+
+        for (String k : all) {
+            try {
+                HeadObjectResponse head = s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(k).build());
+                if (chosen == null || (head.lastModified() != null && head.lastModified().isAfter(latestTs))) {
+                    chosen = k;
+                    latestTs = head.lastModified();
+                }
+            } catch (Exception e) {
+                // si falla un head, lo ignoramos y seguimos con el resto
+                log.warn("No se pudo hacer headObject de '{}': {}", k, e.getMessage());
+            }
         }
-        // default "orig"
-        return buildPublicUrl(bucket, origKey);
+
+        if (chosen == null) {
+            // fallback muy defensivo: si no pudimos hacer HEAD de ninguno, usar el primero
+            chosen = all.get(0);
+        }
+
+        // 3) Si piden size, intentar variantes; si no existen, caer al original
+        if ("256".equals(size)) {
+            String k = variantKey(chosen, "_256");
+            return buildPublicUrl(bucket, objectExists(bucket, k) ? k : chosen);
+        } else if ("600".equals(size)) {
+            String k = variantKey(chosen, "_600");
+            return buildPublicUrl(bucket, objectExists(bucket, k) ? k : chosen);
+        }
+
+        // 4) Por defecto, original
+        return buildPublicUrl(bucket, chosen);
     }
 
     /**
@@ -209,7 +226,7 @@ public class BucketService {
     }
 
     private List<String> listUserProfileKeys(String bucket, String email) {
-        String prefix = userProfileBaseKey(email); // <email>/profile
+        String prefix = userEmailPrefix(email); // <email>/
         List<String> keys = new ArrayList<>();
 
         ListObjectsV2Request req = ListObjectsV2Request.builder()
@@ -221,7 +238,11 @@ public class BucketService {
             for (S3Object obj : page.contents()) {
                 String k = obj.key();
                 if (k != null && !k.endsWith("/")) {
-                    keys.add(k);
+                    String lower = k.toLowerCase(Locale.ROOT);
+                    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+                            || lower.endsWith(".png") || lower.endsWith(".webp")) {
+                        keys.add(k);
+                    }
                 }
             }
         }
@@ -229,8 +250,13 @@ public class BucketService {
     }
 
     private String userProfileBaseKey(String email) {
-        String safeEmail = email == null ? "unknown" : email.trim();
-        return safeEmail + "/" + PROFILE_BASE_NAME;
+        String safeEmail = (email == null ? "unknown" : email.trim());
+        return safeEmail + "/" + UUID.randomUUID();
+    }
+
+    private String userEmailPrefix(String email) {
+        String safeEmail = (email == null ? "unknown" : email.trim());
+        return safeEmail + "/";
     }
 
     private ContentAndPayload extractContentTypeAndPayload(String base64, String fallbackContentType) {
