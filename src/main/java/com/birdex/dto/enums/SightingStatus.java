@@ -1,5 +1,5 @@
 package com.birdex.dto.enums;
 
-public enum SIGHTING_STATUS {
+public enum SightingStatus {
     PENDING
 }
