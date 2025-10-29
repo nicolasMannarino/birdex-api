@@ -4,6 +4,7 @@ import com.birdex.domain.BirdDetectRequest;
 import com.birdex.domain.BirdDetectResponse;
 import com.birdex.domain.BirdVideoDetectRequest;
 import com.birdex.domain.BirdVideoDetectResponse;
+import com.birdex.dto.enums.SIGHTING_STATUS;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
 import com.birdex.exception.UserNotFoundException;
@@ -52,7 +53,7 @@ public class DetectionService {
             SightingEntity pending = SightingEntity.builder()
                     .user(userEntity)
                     .dateTime(LocalDateTime.now())
-                    .state("PENDING")
+                    .state(SIGHTING_STATUS.PENDING.name())
                     .build();
 
             pending = sightingRepository.save(pending);
