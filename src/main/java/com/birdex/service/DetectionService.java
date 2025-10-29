@@ -32,12 +32,65 @@ public class DetectionService {
     private final UserRepository userRepository;
     private static final String CACHE = "public, max-age=31536000, immutable";
 
-
     public BirdVideoDetectResponse detectVideo(BirdVideoDetectRequest req) {
+        log.info("🎥 Iniciando detección de video para usuario: {}", req.getEmail());
+
         int fps = (req.getSampleFps() == null || req.getSampleFps() < 1) ? 1 : req.getSampleFps();
         boolean stop = req.getStopOnFirstAbove() != null && req.getStopOnFirstAbove();
         byte[] bytes = Base64Sanitizer.decode(req.getFileBase64());
-        return modelProcessor.evaluateVideo(bytes, fps, stop);
+
+        UserEntity userEntity = userRepository.findByEmail(req.getEmail()).orElseThrow(() -> {
+            log.warn("No user found for email: {}", req.getEmail());
+            return new UserNotFoundException(req.getEmail());
+        });
+
+        try {
+            // Crear avistamiento pendiente
+            SightingEntity pending = SightingEntity.builder()
+                    .user(userEntity)
+                    .dateTime(LocalDateTime.now())
+                    .state(SightingStatus.PENDING.name())
+                    .build();
+
+            pending = sightingRepository.save(pending);
+            log.info("✅ SightingEntity de video creado con ID: {}", pending.getSightingId());
+
+            // Evaluar video con el modelo
+            var result = modelProcessor.evaluateVideo(bytes, fps, stop);
+            log.info("🔍 Resultado del modelo de video: label='{}', trustLevel={}", result.getLabel(), result.getTrustLevel());
+
+            // Guardar en bucket
+            String mimeType = FileMetadataExtractor.extractMimeType(req.getFileBase64());
+            byte[] data = FileMetadataExtractor.extractData(req.getFileBase64());
+
+            String generated = FilenameGenerator.generate(
+                    req.getEmail(),
+                    "pending_video",
+                    mimeType
+            );
+
+            String slugBird = Slugs.of(result.getLabel());
+
+            String keyWithinBucket = String.format("%s/%s/%s/%s",
+                    req.getEmail(),
+                    slugBird,
+                    pending.getSightingId(),
+                    lastPathSegment(generated)
+            );
+
+            bucketService.uploadSightingObject(keyWithinBucket, data, toContentType(mimeType), CACHE);
+            log.info("🎞️ Video guardado en bucket con key: {}", keyWithinBucket);
+
+            return BirdVideoDetectResponse.builder()
+                    .label(result.getLabel())
+                    .trustLevel(result.getTrustLevel())
+                    .sightingId(pending.getSightingId())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("❌ Error durante la detección de video: {}", e.getMessage(), e);
+            throw new RuntimeException("Error procesando detección de video: " + e.getMessage(), e);
+        }
     }
 
 
@@ -81,12 +134,6 @@ public class DetectionService {
                     pending.getSightingId(),
                     lastPathSegment(generated)
             );
-
-            /*String key = String.format(
-                    "pending/%s/%s",
-                    pending.getSightingId(),
-                    generated
-            );*/
 
             bucketService.uploadSightingObject(keyWithinBucket, data, toContentType(mimeType), CACHE);
             log.info("🪶 Imagen guardada en bucket con key: {}", keyWithinBucket);

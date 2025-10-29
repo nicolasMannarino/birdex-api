@@ -7,9 +7,19 @@ import lombok.Data;
 
 @Data
 public class BirdVideoDetectRequest {
+
     @JsonProperty("fileBase64")
-    @JsonAlias({"videoBase64","base64","file_base64"})
+    @JsonAlias({"videoBase64", "base64", "file_base64"})
     private String fileBase64;
+
+    @JsonProperty("sampleFps")
     private Integer sampleFps = 1;
+
+    @JsonProperty("stopOnFirstAbove")
     private Boolean stopOnFirstAbove = false;
+
+    @JsonProperty("email")
+    @JsonAlias({"userEmail", "correo", "mail"})
+    private String email;
 }
+

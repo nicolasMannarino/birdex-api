@@ -4,6 +4,7 @@ import com.birdex.domain.*;
 import com.birdex.dto.SightingDto;
 import com.birdex.dto.SightingFullResponse;
 import com.birdex.dto.SightingsForBirdResponse;
+import com.birdex.dto.enums.SightingStatus;
 import com.birdex.entity.BirdEntity;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
@@ -42,17 +43,34 @@ public class SightingService {
     private static final String CACHE = "public, max-age=31536000, immutable";
 
     public void registerSighting(SightingRequest request) {
+        log.info("📸 Registrando avistamiento confirmado para usuario: {}", request.getEmail());
+
         // Buscar usuario
-        UserEntity userEntity = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> {
-            log.warn("No user found for email: {}", request.getEmail());
-            return new UserNotFoundException(request.getEmail());
-        });
+        UserEntity userEntity = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> {
+                    log.warn("No user found for email: {}", request.getEmail());
+                    return new UserNotFoundException(request.getEmail());
+                });
 
         // Buscar ave
-        BirdEntity birdEntity = birdRepository.findFirstByNameContainingIgnoreCase(request.getBirdName()).orElseThrow(() -> {
-            log.warn("No bird found for name: {}", request.getBirdName());
-            return new BirdNotFoundException(request.getBirdName());
-        });
+        BirdEntity birdEntity = birdRepository.findFirstByNameContainingIgnoreCase(request.getBirdName())
+                .orElseThrow(() -> {
+                    log.warn("No bird found for name: {}", request.getBirdName());
+                    return new BirdNotFoundException(request.getBirdName());
+                });
+
+        // Buscar avistamiento pendiente
+        SightingEntity pendingSighting = sightingRepository.findById(request.getSightingId())
+                .orElseThrow(() -> {
+                    log.warn("No sighting found for ID: {}", request.getSightingId());
+                    return new IllegalArgumentException("No se encontró el avistamiento con ID " + request.getSightingId());
+                });
+
+        if (!SightingStatus.PENDING.name().equals(pendingSighting.getState())) {
+            log.warn("El avistamiento {} no está en estado PENDING (actual: {})",
+                    request.getSightingId(), pendingSighting.getState());
+            throw new IllegalStateException("El avistamiento no está pendiente de confirmación");
+        }
 
         // Procesar coordenadas
         BigDecimal lat = request.getLatitude();
@@ -69,50 +87,33 @@ public class SightingService {
         if (lat == null || lon == null) {
             throw new IllegalArgumentException("latitude/longitude son obligatorios (o pasá location=\"lat,lon\")");
         }
+
         validateLatLon(lat, lon);
 
-        // --- Crear y guardar avistamiento ---
-        SightingEntity sightingEntity = SightingEntity.builder()
-                .dateTime(defaultIfNull(request.getDateTime(), LocalDateTime.now()))
+        // --- Actualizar y guardar avistamiento ---
+        SightingEntity confirmedSighting = SightingEntity.builder()
+                .sightingId(pendingSighting.getSightingId()) // conservamos el mismo ID
+                .user(userEntity)
+                .bird(birdEntity)
+                .dateTime(defaultIfNull(request.getDateTime(), pendingSighting.getDateTime()))
                 .latitude(lat)
                 .longitude(lon)
                 .locationText(request.getLocationText())
-                .user(userEntity)
-                .bird(birdEntity)
+                .state(SightingStatus.CONFIRMED.name())
                 .build();
 
-        // Guardamos para que JPA asigne el ID
-        sightingEntity = sightingRepository.save(sightingEntity);
-
-        // --- Preparar datos del archivo ---
-        //String mimeType = FileMetadataExtractor.extractMimeType(request.getBase64());
-        //byte[] data = FileMetadataExtractor.extractData(request.getBase64());
-
-        //String slugBird = Slugs.of(birdEntity.getName());
-        //String generated = FilenameGenerator.generate(request.getEmail(), birdEntity.getName(), mimeType);
-
-        // ⚡ Ahora sightingId ya no es null
-        //String sightingIdStr = sightingEntity.getSightingId().toString();
-
-        /*String keyWithinBucket = String.format("%s/%s/%s/%s",
-                request.getEmail(),
-                slugBird,
-                sightingIdStr,
-                lastPathSegment(generated)
-        );*/
-
-        // Subir a bucket
-        //bucketService.uploadSightingObject(keyWithinBucket, data, toContentType(mimeType), CACHE);
+        sightingRepository.save(confirmedSighting);
+        log.info("✅ Avistamiento confirmado y actualizado con ID {}", confirmedSighting.getSightingId());
 
         // --- Puntos y misiones ---
         int pointsAdded = pointsService.addPointsForSighting(userEntity, birdEntity);
         log.info("Se sumaron {} puntos al usuario {} por avistamiento de {}",
                 pointsAdded, userEntity.getEmail(), birdEntity.getName());
 
-        missionService.checkAndUpdateMissions(userEntity, birdEntity, sightingEntity);
-        achievementService.checkAndUpdateAchievements(userEntity, birdEntity, sightingEntity);
+        missionService.checkAndUpdateMissions(userEntity, birdEntity, confirmedSighting);
+        achievementService.checkAndUpdateAchievements(userEntity, birdEntity, confirmedSighting);
 
-        log.info("Avistamiento registrado correctamente con ID {}", sightingEntity.getSightingId());
+        log.info("🎯 Misiones y logros actualizados para el avistamiento {}", confirmedSighting.getSightingId());
     }
 
 
