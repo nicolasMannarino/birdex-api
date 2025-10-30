@@ -3,6 +3,7 @@ package com.birdex.controller;
 import com.birdex.config.BucketProperties;
 import com.birdex.domain.ActionReportRequest;
 import com.birdex.domain.enums.Action;
+import com.birdex.dto.ReportAdminDto;
 import com.birdex.entity.ReportEntity;
 import com.birdex.entity.enums.ReportStatus;
 import com.birdex.service.BucketService;
@@ -232,7 +233,7 @@ public class AdminController {
                     + "Podés filtrar opcionalmente por estado."
     )
     @ApiResponse(responseCode = "200", description = "OK")
-    public ResponseEntity<Page<ReportEntity>> listReports(
+    public ResponseEntity<Page<ReportAdminDto>> listReports(
             @Parameter(
                     description = "Página (base 0)",
                     example = "0"
@@ -255,7 +256,20 @@ public class AdminController {
     ) {
         PageRequest pageable = PageRequest.of(page, Math.max(1, Math.min(size, 200)));
         Page<ReportEntity> result = reportService.listReports(status, pageable);
-        return ResponseEntity.ok(result);
+
+        Page<ReportAdminDto> dtoPage = result.map(r ->
+                new ReportAdminDto(
+                        r.getId(),
+                        r.getSighting().getSightingId(),
+                        r.getReportedBy().getEmail(),
+                        r.getDescription(),
+                        r.getStatus(),
+                        r.getReportedAt(),
+                        r.getReadAt()
+                )
+        );
+
+        return ResponseEntity.ok(dtoPage);
     }
 
     @PutMapping("/reports")
