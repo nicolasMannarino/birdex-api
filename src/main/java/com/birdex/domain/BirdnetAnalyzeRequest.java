@@ -26,4 +26,12 @@ public class BirdnetAnalyzeRequest {
             defaultValue = "0.8"
     )
     private Double minConf = 0.8;
+
+    @NotBlank(message = "email is required")
+    @JsonProperty("email")
+    @Schema(
+            description = "Correo electrónico del usuario que sube el audio",
+            example = "usuario@example.com"
+    )
+    private String email;
 }

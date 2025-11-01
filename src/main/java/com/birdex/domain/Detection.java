@@ -1,5 +1,7 @@
 package com.birdex.domain;
 
+import java.util.UUID;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -14,4 +16,6 @@ public class Detection {
     private String label;
     @Schema(description = "Confianza de la predicción (0..1)", example = "0.93")
     private double confidence;
+    @Schema(description = "ID del avistamiento asociado en la base de datos", example = "08d6997d-7685-4993-b5f0-48f2142c28c9")
+    private UUID sightingId;
 }
