@@ -65,7 +65,7 @@ public class DetectionService {
 
             String slugBird = Slugs.of(result.getLabel());
 
-            BirdEntity bird = birdRepository.findFirstByNameContainingIgnoreCase(slugBird)
+            BirdEntity bird = birdRepository.findFirstByNameContainingIgnoreCase(slugBird.replace("_", " "))
                     .orElseThrow(() -> {
                         log.warn("No bird found for name: {}", slugBird);
                         return new BirdNotFoundException(slugBird);
@@ -129,7 +129,7 @@ public class DetectionService {
 
             String slugBird = Slugs.of(result.getLabel());
 
-            BirdEntity bird = birdRepository.findFirstByNameContainingIgnoreCase(slugBird)
+            BirdEntity bird = birdRepository.findFirstByNameContainingIgnoreCase(slugBird.replace("_", " "))
                     .orElseThrow(() -> {
                         log.warn("No bird found for name: {}", slugBird);
                         return new BirdNotFoundException(slugBird);
