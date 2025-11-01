@@ -28,7 +28,7 @@ public class AchievementService {
     public void checkAndUpdateAchievements(UserEntity user, BirdEntity bird, SightingEntity sighting) {
         List<AchievementEntity> allAchievements = achievementRepository.findAll();
 
-        for (AchievementEntity achievement : allAchievements) {  
+        for (AchievementEntity achievement : allAchievements) {
             // Buscar si ya existe el progreso del usuario en este logro
             UserAchievementEntity progress = userAchievementRepository
                     .findByUser_UserIdAndAchievement_AchievementId(user.getUserId(), achievement.getAchievementId())
@@ -89,7 +89,11 @@ public class AchievementService {
                 case "unique_species" -> {
                     long uniqueSpecies = userService.getSightingsEntityByEmail(user.getEmail())
                             .stream()
-                            .map(s -> s.getBird().getName().toLowerCase())
+                            .map(SightingEntity::getBird)
+                            .filter(Objects::nonNull)
+                            .map(BirdEntity::getName)
+                            .filter(Objects::nonNull)
+                            .map(String::toLowerCase)
                             .distinct()
                             .count();
                     updated.put("unique_species", (int) uniqueSpecies);

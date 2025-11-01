@@ -136,6 +136,9 @@ CREATE TABLE IF NOT EXISTS sightings (
     CONSTRAINT fk_birdS FOREIGN KEY (bird_id) REFERENCES birds(bird_id) ON DELETE CASCADE
 );
 
+ALTER TABLE sightings
+    ALTER COLUMN bird_id SET NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_sightings_lat_lon ON sightings (latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_sightings_datetime ON sightings (date_time);
 
