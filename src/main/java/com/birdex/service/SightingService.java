@@ -152,7 +152,7 @@ public class SightingService {
     public SightingByUserResponse getSightingsByUser(String email) {
         validateIfEmailExists(email);
 
-        List<SightingEntity> entities = sightingRepository.findByUserEmailAndDeletedFalse(email);
+        List<SightingEntity> entities = sightingRepository.findByUserEmailAndStateAndDeletedFalse(email, SightingStatus.CONFIRMED.name());
 
         // Mapear uno a uno, resolviendo portada por sightingId
         List<SightingResponse> responses = entities.stream()
@@ -227,12 +227,12 @@ public class SightingService {
                 .orElse("");
 
         List<SightingEntity> mineEntities =
-                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailAndDeletedFalseOrderByDateTimeDesc(
-                        canonicalBirdName, email);
+                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailAndStateAndDeletedFalseOrderByDateTimeDesc(
+                    canonicalBirdName, email, SightingStatus.CONFIRMED.name());
 
         List<SightingEntity> othersEntities =
-                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailNotAndDeletedFalseOrderByDateTimeDesc(
-                        canonicalBirdName, email);
+                sightingRepository.findByBird_NameIgnoreCaseAndUser_EmailNotAndStateAndDeletedFalseOrderByDateTimeDesc(
+                    canonicalBirdName, email, SightingStatus.CONFIRMED.name());
 
         // Importante: ya NO cacheamos por email. Las fotos se buscan por sightingId.
         List<SightingFullResponse> mine = mineEntities.stream()

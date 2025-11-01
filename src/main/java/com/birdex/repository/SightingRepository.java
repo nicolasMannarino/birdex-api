@@ -13,6 +13,17 @@ import java.util.List;
 import java.util.UUID;
 
 public interface SightingRepository extends JpaRepository<SightingEntity, UUID> {
+
+    List<SightingEntity> findByUserEmailAndStateAndDeletedFalse(String email, String state);
+
+    List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailAndStateAndDeletedFalseOrderByDateTimeDesc(
+            String birdName, String email, String state
+    );
+
+    List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailNotAndStateAndDeletedFalseOrderByDateTimeDesc(
+            String birdName, String email, String state
+    );
+
     List<SightingEntity> findByUserEmailAndDeletedFalse(String email);
     List<SightingEntity> findByBird_NameIgnoreCaseAndUser_EmailAndDeletedFalseOrderByDateTimeDesc(
             String birdName, String email
@@ -64,6 +75,7 @@ public interface SightingRepository extends JpaRepository<SightingEntity, UUID> 
         where s.bird.birdId = :birdId
           and s.user.userId = :userId
           and s.deleted = false
+          and s.state = 'CONFIRMED'
         order by s.dateTime desc
     """)
     List<UUID> findIdsByBirdIdAndUserId(@Param("birdId") UUID birdId,
