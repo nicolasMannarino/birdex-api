@@ -5,9 +5,12 @@ import com.birdex.domain.BirdDetectResponse;
 import com.birdex.domain.BirdVideoDetectRequest;
 import com.birdex.domain.BirdVideoDetectResponse;
 import com.birdex.dto.enums.SightingStatus;
+import com.birdex.entity.BirdEntity;
 import com.birdex.entity.SightingEntity;
 import com.birdex.entity.UserEntity;
+import com.birdex.exception.BirdNotFoundException;
 import com.birdex.exception.UserNotFoundException;
+import com.birdex.repository.BirdRepository;
 import com.birdex.repository.SightingRepository;
 import com.birdex.repository.UserRepository;
 import com.birdex.utils.Base64Sanitizer;
@@ -30,6 +33,7 @@ public class DetectionService {
     private final SightingRepository sightingRepository;
     private final BucketService bucketService;
     private final UserRepository userRepository;
+    private final BirdRepository birdRepository;
     private static final String CACHE = "public, max-age=31536000, immutable";
 
     public BirdVideoDetectResponse detectVideo(BirdVideoDetectRequest req) {
@@ -45,16 +49,6 @@ public class DetectionService {
         });
 
         try {
-            // Crear avistamiento pendiente
-            SightingEntity pending = SightingEntity.builder()
-                    .user(userEntity)
-                    .dateTime(LocalDateTime.now())
-                    .state(SightingStatus.PENDING.name())
-                    .build();
-
-            pending = sightingRepository.save(pending);
-            log.info("✅ SightingEntity de video creado con ID: {}", pending.getSightingId());
-
             // Evaluar video con el modelo
             var result = modelProcessor.evaluateVideo(bytes, fps, stop);
             log.info("🔍 Resultado del modelo de video: label='{}', trustLevel={}", result.getLabel(), result.getTrustLevel());
@@ -70,6 +64,22 @@ public class DetectionService {
             );
 
             String slugBird = Slugs.of(result.getLabel());
+
+            BirdEntity bird = birdRepository.findFirstByNameContainingIgnoreCase(slugBird)
+                    .orElseThrow(() -> {
+                        log.warn("No bird found for name: {}", slugBird);
+                        return new BirdNotFoundException(slugBird);
+                    });
+
+            SightingEntity pending = SightingEntity.builder()
+                    .user(userEntity)
+                    .bird(bird)
+                    .dateTime(LocalDateTime.now())
+                    .state(SightingStatus.PENDING.name())
+                    .build();
+
+            pending = sightingRepository.save(pending);
+            log.info("✅ SightingEntity creado con ID: {}", pending.getSightingId());
 
             String keyWithinBucket = String.format("%s/%s/%s/%s",
                     req.getEmail(),
@@ -103,15 +113,6 @@ public class DetectionService {
         });
 
         try {
-            SightingEntity pending = SightingEntity.builder()
-                    .user(userEntity)
-                    .dateTime(LocalDateTime.now())
-                    .state(SightingStatus.PENDING.name())
-                    .build();
-
-            pending = sightingRepository.save(pending);
-            log.info("✅ SightingEntity creado con ID: {}", pending.getSightingId());
-
             String mimeType = FileMetadataExtractor.extractMimeType(request.getFileBase64());
             byte[] data = FileMetadataExtractor.extractData(request.getFileBase64());
 
@@ -127,6 +128,22 @@ public class DetectionService {
                     result.getLabel(), result.getTrustLevel());
 
             String slugBird = Slugs.of(result.getLabel());
+
+            BirdEntity bird = birdRepository.findFirstByNameContainingIgnoreCase(slugBird)
+                    .orElseThrow(() -> {
+                        log.warn("No bird found for name: {}", slugBird);
+                        return new BirdNotFoundException(slugBird);
+                    });
+
+            SightingEntity pending = SightingEntity.builder()
+                    .user(userEntity)
+                    .bird(bird)
+                    .dateTime(LocalDateTime.now())
+                    .state(SightingStatus.PENDING.name())
+                    .build();
+
+            pending = sightingRepository.save(pending);
+            log.info("✅ SightingEntity creado con ID: {}", pending.getSightingId());
 
             String keyWithinBucket = String.format("%s/%s/%s/%s",
                     request.getEmail(),
