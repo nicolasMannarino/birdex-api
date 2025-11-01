@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/detect")
@@ -58,5 +59,33 @@ public class VisualAnalysisController {
     )
     public ResponseEntity<BirdVideoDetectResponse> analyzeVideo(@Valid @RequestBody BirdVideoDetectRequest request) {
         return ResponseEntity.ok(detectionService.detectVideo(request));
+    }
+
+    @PostMapping(
+            path = "/video-multipart",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    @Operation(
+            summary = "Detectar ave en video (multipart/form-data)",
+            description = "Subís el video como archivo y pasás email + params opcionales en el form."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "OK",
+                    content = @Content(schema = @Schema(implementation = BirdVideoDetectResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Request inválido",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Error interno",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<BirdVideoDetectResponse> analyzeVideoMultipart(
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("email") String email,
+            @RequestPart(name = "sampleFps", required = false) Integer sampleFps,
+            @RequestPart(name = "stopOnFirstAbove", required = false) Boolean stopOnFirstAbove
+    ) {
+        return ResponseEntity.ok(
+                detectionService.detectVideoMultipart(file, email, sampleFps, stopOnFirstAbove)
+        );
     }
 }

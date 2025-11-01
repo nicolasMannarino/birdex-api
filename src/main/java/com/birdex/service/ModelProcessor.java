@@ -20,16 +20,23 @@ public class ModelProcessor {
 
     private static final String IMG_WORKER = "src/main/resources/birdex_worker_image.py";
     private static final String VID_WORKER = "src/main/resources/birdex_worker_video.py";
+    private static final String VID_MULTIPART_WORKER = "src/main/resources/birdex_worker_video_multipart.py";
 
     private Process imgProc;
-    private BufferedReader imgReader;            // stdout JSON
-    private BufferedOutputStream imgWriter;      // stdin bytes
+    private BufferedReader imgReader;
+    private BufferedOutputStream imgWriter;
 
     private Process vidProc;
     private BufferedReader vidReader;
     private BufferedOutputStream vidWriter;
     private int lastVideoFps = 1;
     private boolean lastVideoStop = false;
+
+    private Process vidMultipartProc;
+    private BufferedReader vidMultipartReader;
+    private BufferedOutputStream vidMultipartWriter;
+    private int lastVideoMultipartFps = 1;
+    private boolean lastVideoMultipartStop = false;
 
     /* ================= API ================= */
 
@@ -55,11 +62,38 @@ public class ModelProcessor {
         return parseVideoResponse(line);
     }
 
+    @SneakyThrows
+    public BirdVideoDetectResponse evaluateVideoMultipart(byte[] videoBytes, int sampleFps, boolean stopOnFirstAbove) {
+        if (videoBytes == null || videoBytes.length == 0) {
+            throw new IllegalArgumentException("Video vacío o nulo (multipart)");
+        }
+        lastVideoMultipartFps = Math.max(1, sampleFps);
+        lastVideoMultipartStop = stopOnFirstAbove;
+        ensureVidMultipartWorker(lastVideoMultipartFps, lastVideoMultipartStop);
+        String line = askWorker(vidMultipartWriter, vidMultipartReader, videoBytes, 60_000);
+        return parseVideoResponse(line);
+    }
+
     /* ============== Workers lifecycle ============== */
 
     private synchronized void ensureImgWorker() throws IOException {
         if (imgProc != null && imgProc.isAlive()) return;
         startImgWorker();
+    }
+
+    private synchronized void ensureVidMultipartWorker(int fps, boolean stopOnFirstAbove) throws IOException {
+        if (vidMultipartProc != null && vidMultipartProc.isAlive()) return;
+        startVidMultipartWorker(fps, stopOnFirstAbove);
+    }
+
+    private void startVidMultipartWorker(int fps, boolean stop) throws IOException {
+        ProcessBuilder pb = new ProcessBuilder("python", VID_MULTIPART_WORKER,
+                "--fps=" + fps,
+                "--stop=" + (stop ? "1" : "0"));
+        pb.redirectErrorStream(false);
+        vidMultipartProc = pb.start();
+        vidMultipartReader = new BufferedReader(new InputStreamReader(vidMultipartProc.getInputStream(), StandardCharsets.UTF_8));
+        vidMultipartWriter = new BufferedOutputStream(vidMultipartProc.getOutputStream());
     }
 
     private synchronized void ensureVidWorker(int fps, boolean stopOnFirstAbove) throws IOException {
@@ -76,7 +110,9 @@ public class ModelProcessor {
     }
 
     private void startVidWorker(int fps, boolean stop) throws IOException {
-        ProcessBuilder pb = new ProcessBuilder("python", VID_WORKER, "--fps=" + fps, "--stop=" + (stop ? "1" : "0"));
+        ProcessBuilder pb = new ProcessBuilder("python", VID_WORKER,
+                "--fps=" + fps,
+                "--stop=" + (stop ? "1" : "0"));
         pb.redirectErrorStream(false);
         vidProc = pb.start();
         vidReader = new BufferedReader(new InputStreamReader(vidProc.getInputStream(), StandardCharsets.UTF_8));
@@ -113,7 +149,8 @@ public class ModelProcessor {
                             try {
                                 Double.parseDouble(tail);
                                 return line;
-                            } catch (NumberFormatException ignore) {}
+                            } catch (NumberFormatException ignore) {
+                            }
                         }
                     }
                 } catch (IOException e) {
@@ -137,6 +174,9 @@ public class ModelProcessor {
         } else if (Objects.equals(writer, vidWriter)) {
             closeVidWorker();
             startVidWorker(lastVideoFps, lastVideoStop);
+        } else if (Objects.equals(writer, vidMultipartWriter)) {
+            closeVidMultipartWorker();
+            startVidMultipartWorker(lastVideoMultipartFps, lastVideoMultipartStop);
         }
     }
 
@@ -144,21 +184,55 @@ public class ModelProcessor {
         safeClose(imgWriter);
         safeClose(imgReader);
         destroy(imgProc);
-        imgWriter = null; imgReader = null; imgProc = null;
+        imgWriter = null;
+        imgReader = null;
+        imgProc = null;
     }
 
     private void closeVidWorker() {
         safeClose(vidWriter);
         safeClose(vidReader);
         destroy(vidProc);
-        vidWriter = null; vidReader = null; vidProc = null;
+        vidWriter = null;
+        vidReader = null;
+        vidProc = null;
     }
 
-    private void safeClose(Closeable c) { if (c != null) try { c.close(); } catch (IOException ignored) {} }
-    private void destroy(Process p) { if (p != null) { p.destroy(); try { p.waitFor(); } catch (InterruptedException ignored) {} } }
+    // 👇 este te faltaba
+    private void closeVidMultipartWorker() {
+        safeClose(vidMultipartWriter);
+        safeClose(vidMultipartReader);
+        destroy(vidMultipartProc);
+        vidMultipartWriter = null;
+        vidMultipartReader = null;
+        vidMultipartProc = null;
+    }
+
+    private void safeClose(Closeable c) {
+        if (c != null) {
+            try {
+                c.close();
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
+    private void destroy(Process p) {
+        if (p != null) {
+            p.destroy();
+            try {
+                p.waitFor();
+            } catch (InterruptedException ignored) {
+            }
+        }
+    }
 
     @PreDestroy
-    public void shutdown() { closeImgWorker(); closeVidWorker(); }
+    public void shutdown() {
+        closeImgWorker();
+        closeVidWorker();
+        closeVidMultipartWorker();
+    }
 
     /* ============== Parsers ============== */
 

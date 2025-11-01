@@ -18,16 +18,17 @@ import com.birdex.utils.FileMetadataExtractor;
 import com.birdex.utils.FilenameGenerator;
 import com.birdex.utils.Slugs;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DetectionService {
-
 
     private final ModelProcessor modelProcessor;
     private final SightingRepository sightingRepository;
@@ -49,11 +50,12 @@ public class DetectionService {
         });
 
         try {
-            // Evaluar video con el modelo
+            // 1) Ejecutar el modelo
             var result = modelProcessor.evaluateVideo(bytes, fps, stop);
-            log.info("🔍 Resultado del modelo de video: label='{}', trustLevel={}", result.getLabel(), result.getTrustLevel());
+            log.info("🔍 Resultado del modelo de video: label='{}', trustLevel={}",
+                    result.getLabel(), result.getTrustLevel());
 
-            // Guardar en bucket
+            // 2) Guardar el archivo en el bucket
             String mimeType = FileMetadataExtractor.extractMimeType(req.getFileBase64());
             byte[] data = FileMetadataExtractor.extractData(req.getFileBase64());
 
@@ -88,7 +90,13 @@ public class DetectionService {
                     lastPathSegment(generated)
             );
 
-            bucketService.uploadSightingObject(keyWithinBucket, data, toContentType(mimeType), CACHE);
+            // 👇 acá estaba el error: ahora usamos el fallback correcto para VIDEO
+            bucketService.uploadSightingObject(
+                    keyWithinBucket,
+                    data,
+                    toContentType(mimeType, "video/mp4"),
+                    CACHE
+            );
             log.info("🎞️ Video guardado en bucket con key: {}", keyWithinBucket);
 
             return BirdVideoDetectResponse.builder()
@@ -152,9 +160,14 @@ public class DetectionService {
                     lastPathSegment(generated)
             );
 
-            bucketService.uploadSightingObject(keyWithinBucket, data, toContentType(mimeType), CACHE);
+            // 👇 acá también estaba llamando al método con 1 solo parámetro
+            bucketService.uploadSightingObject(
+                    keyWithinBucket,
+                    data,
+                    toContentType(mimeType, "image/jpeg"),
+                    CACHE
+            );
             log.info("🪶 Imagen guardada en bucket con key: {}", keyWithinBucket);
-
 
             return BirdDetectResponse.builder()
                     .label(result.getLabel())
@@ -168,17 +181,92 @@ public class DetectionService {
         }
     }
 
+    public BirdVideoDetectResponse detectVideoMultipart(MultipartFile file,
+                                                        String email,
+                                                        Integer sampleFps,
+                                                        Boolean stopOnFirstAbove) {
+        log.info("🎥 (multipart) Iniciando detección de video para usuario: {}", email);
 
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("El archivo de video es obligatorio");
+        }
 
-    private static String toContentType(String mimeType) {
-        if (mimeType == null || mimeType.isBlank()) return "image/jpeg";
-        return mimeType;
+        UserEntity userEntity = userRepository.findByEmail(email).orElseThrow(() -> {
+            log.warn("No user found for email: {}", email);
+            return new UserNotFoundException(email);
+        });
+
+        try {
+            byte[] data = file.getBytes();
+            int fps = (sampleFps == null || sampleFps < 1) ? 1 : sampleFps;
+            boolean stop = stopOnFirstAbove != null && stopOnFirstAbove;
+
+            var result = modelProcessor.evaluateVideoMultipart(data, fps, stop);
+            log.info("🔍 (multipart) Resultado del modelo de video: label='{}', trustLevel={}",
+                    result.getLabel(), result.getTrustLevel());
+
+            String slugBird = Slugs.of(result.getLabel());
+
+            BirdEntity bird = birdRepository.findFirstByNameContainingIgnoreCase(slugBird.replace("_", " "))
+                    .orElseThrow(() -> {
+                        log.warn("No bird found for name: {}", slugBird);
+                        return new BirdNotFoundException(slugBird);
+                    });
+
+            SightingEntity pending = SightingEntity.builder()
+                    .user(userEntity)
+                    .bird(bird)
+                    .dateTime(LocalDateTime.now())
+                    .state(SightingStatus.PENDING.name())
+                    .build();
+
+            pending = sightingRepository.save(pending);
+            log.info("✅ (multipart) SightingEntity creado con ID: {}", pending.getSightingId());
+
+            String originalName = file.getOriginalFilename();
+            String mimeType = file.getContentType();
+            if (mimeType == null || mimeType.isBlank()) {
+                mimeType = "video/mp4";
+            }
+
+            String keyWithinBucket = String.format("%s/%s/%s/%s",
+                    email,
+                    slugBird,
+                    pending.getSightingId(),
+                    lastPathSegment(
+                            originalName != null
+                                    ? originalName
+                                    : FilenameGenerator.generate(email, "pending_video", mimeType)
+                    )
+            );
+
+            bucketService.uploadSightingObject(keyWithinBucket, data, mimeType, CACHE);
+            log.info("🎞️ (multipart) Video guardado en bucket con key: {}", keyWithinBucket);
+
+            return BirdVideoDetectResponse.builder()
+                    .label(result.getLabel())
+                    .trustLevel(result.getTrustLevel())
+                    .sightingId(pending.getSightingId())
+                    .build();
+
+        } catch (IOException e) {
+            log.error("❌ Error leyendo el archivo multipart: {}", e.getMessage(), e);
+            throw new RuntimeException("Error leyendo el archivo multipart: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("❌ Error durante la detección multipart: {}", e.getMessage(), e);
+            throw new RuntimeException("Error procesando detección multipart: " + e.getMessage(), e);
+        }
+    }
+
+    /* ===== utils ===== */
+
+    private static String toContentType(String mimeType, String fallback) {
+        return (mimeType == null || mimeType.isBlank()) ? fallback : mimeType;
     }
 
     private static String lastPathSegment(String path) {
-        if (path == null || path.isBlank()) return "image";
+        if (path == null || path.isBlank()) return "file";
         int i = path.lastIndexOf('/');
         return (i >= 0 && i < path.length() - 1) ? path.substring(i + 1) : path;
     }
 }
-
