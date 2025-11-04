@@ -417,7 +417,7 @@ INSERT INTO birds (bird_id, name, common_name, size, description, characteristic
   (gen_random_uuid(), 'Vultur gryphus', 'Cóndor andino', 'Muy grande',
    'El ave voladora más grande de Sudamérica, de plumaje negro con collar blanco y gran envergadura. Habita zonas montañosas y acantilados.',
    'Planeador experto; se alimenta de carroña; vuela grandes distancias aprovechando corrientes térmicas.',
-   'https://example.com/img/vultur_gryphus.jpg', 1000, 1300, 3000, 7000),
+   'https://example.com/img/vultur_gryphus.jpg', 1000, 1300, 8000, 15000),
 
   (gen_random_uuid(), 'Phoenicopterus chilensis', 'Flamenco austral', 'Grande',
    'Flamenco rosado pálido; filtra alimento en aguas someras.',
