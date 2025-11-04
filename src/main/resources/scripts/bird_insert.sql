@@ -414,10 +414,10 @@ INSERT INTO birds (bird_id, name, common_name, size, description, characteristic
    'Gregario; gran corredor; nidos comunales.',
    'https://example.com/img/rhea_americana.jpg', 1300, 1700, 20000, 40000),
 
-  (gen_random_uuid(), 'Rhea pennata', 'Ñandú petiso', 'Muy grande',
-   'Ratite patagónica, más pequeño y críptico que R. americana.',
-   'Adaptado a ambientes fríos y ventosos; baja densidad.',
-   'https://example.com/img/rhea_pennata.jpg', 900, 1000, 15000, 28000),
+  (gen_random_uuid(), 'Vultur gryphus', 'Cóndor andino', 'Muy grande',
+   'El ave voladora más grande de Sudamérica, de plumaje negro con collar blanco y gran envergadura. Habita zonas montañosas y acantilados.',
+   'Planeador experto; se alimenta de carroña; vuela grandes distancias aprovechando corrientes térmicas.',
+   'https://example.com/img/vultur_gryphus.jpg', 1000, 1300, 3000, 7000),
 
   (gen_random_uuid(), 'Phoenicopterus chilensis', 'Flamenco austral', 'Grande',
    'Flamenco rosado pálido; filtra alimento en aguas someras.',
@@ -527,7 +527,7 @@ WHERE b.name = 'Rhea americana' AND r.name = 'Raro' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
-WHERE b.name = 'Rhea pennata' AND r.name = 'Raro' ON CONFLICT DO NOTHING;
+WHERE b.name = 'Vultur gryphus' AND r.name = 'Legendario' ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
 SELECT b.bird_id, r.rarity_id FROM birds b, rarities r
@@ -573,7 +573,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_color (bird_id, color_id)
 SELECT b.bird_id, c.color_id FROM birds b, colors c
-WHERE b.name = 'Rhea pennata' AND c.name IN ('Pardo','Gris','Blanquecino')
+WHERE b.name = 'Vultur gryphus' AND c.name IN ('Negro','Blanco','Gris')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO bird_color (bird_id, color_id)
@@ -1009,7 +1009,7 @@ DELETE FROM bird_zone bz
 USING birds b
 WHERE bz.bird_id = b.bird_id AND b.name IN (
   'Furnarius rufus','Gubernatrix cristata','Paroaria coronata','Chauna torquata',
-  'Rhea americana','Rhea pennata','Phoenicopterus chilensis','Ramphastos toco',
+  'Rhea americana','Vultur gryphus','Phoenicopterus chilensis','Ramphastos toco',
   'Turdus rufiventris','Cyanocompsa brissonii','Cygnus melancoryphus','Vanellus chilensis',
   'Buteogallus coronatus','Cathartes aura','Pipraeidea bonariensis','Asio clamator',
   'Thraupis sayaca','Desconocida'
@@ -1060,12 +1060,12 @@ JOIN zones z ON z.name IN
 WHERE b.name = 'Rhea americana'
 ON CONFLICT DO NOTHING;
 
--- Ñandú petiso
+-- Cóndor andino
 INSERT INTO bird_zone (bird_id, zone_id)
 SELECT b.bird_id, z.zone_id
 FROM birds b
-JOIN zones z ON z.name IN ('Mendoza')
-WHERE b.name = 'Rhea pennata'
+JOIN zones z ON z.name IN ('Jujuy','Salta','Catamarca','Tucumán','Tierra del Fuego','San Luis','Río Negro')
+WHERE b.name = 'Vultur gryphus'
 ON CONFLICT DO NOTHING;
 
 -- Flamenco austral
