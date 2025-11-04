@@ -56,7 +56,7 @@ def read_exact(n: int) -> bytes:
 
 def err_dict(msg):
     sys.stderr.write(f"[ERROR VID MULTIPART] {msg}\n"); sys.stderr.flush()
-    return {"label": "Ave no identificada", "trustLevel": 0.0, "error": msg}
+    return {"label": "Desconocida", "trustLevel": 0.0, "error": msg}
 
 def pick_suffix_from_bytes(b: bytes) -> str:
     try:
@@ -104,7 +104,7 @@ try:
     classes = load_classes(CLASSES_PATH)
 except Exception as e:
     sys.stderr.write(f"[ERROR VID MULTIPART] No se pudieron cargar clases: {e}\n"); sys.stderr.flush()
-    classes = ["Ave no identificada"]
+    classes = ["Desconocida"]
 
 try:
     clf = load_classifier(MODEL_PATH, len(classes), DEVICE)
@@ -126,32 +126,41 @@ def classify_frame(bgr):
     import cv2
     from PIL import Image
 
+    # Si no hay YOLO cargado, no clasifiques: evitamos falsos positivos
+    if yolo is None or clf is None:
+        return "Desconocida", 0.0, False
+
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
     pil_full = Image.fromarray(rgb)
 
+    found_bird = False
     pil_crop = None
-    if yolo is not None:
-        with to_stderr():
-            results = yolo(pil_full, imgsz=YOLO_IMGSZ, conf=YOLO_CONF, verbose=False)
-        for r in results:
-            for box in r.boxes:
-                try:
-                    cls_id = int(box.cls[0]); cls_name = yolo.names[cls_id]
-                except Exception:
-                    cls_name = ""
-                if cls_name.lower() == "bird":
-                    x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+
+    # Detectar "bird" con YOLO
+    with to_stderr():
+        results = yolo(pil_full, imgsz=YOLO_IMGSZ, conf=YOLO_CONF, verbose=False)
+
+    for r in results:
+        for box in r.boxes:
+            try:
+                cls_id = int(box.cls[0]); cls_name = yolo.names[cls_id].lower()
+            except Exception:
+                cls_name = ""
+            if cls_name == "bird":
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                # sanity check por si el bbox vino roto
+                if x2 > x1 and y2 > y1:
                     pil_crop = pil_full.crop((x1, y1, x2, y2))
+                    found_bird = True
                     break
-            if pil_crop is not None:
-                break
+        if found_bird:
+            break
 
-    if pil_crop is None:
-        pil_crop = pil_full
+    # Si YOLO no encontró "bird", devolvemos desconocida
+    if not found_bird:
+        return "Desconocida", 0.0, False
 
-    if clf is None:
-        return "Ave no identificada", 0.0
-
+    # Clasificar únicamente el recorte con pájaro
     with torch.no_grad():
         inp = transform(pil_crop).unsqueeze(0).to(DEVICE)
         logits = clf(inp)
@@ -159,8 +168,8 @@ def classify_frame(bgr):
         idx = int(torch.argmax(probs).item())
         conf = float(probs[idx].item())
 
-    label = classes[idx] if conf >= THRESHOLD else "Ave no identificada"
-    return label, conf
+    label = classes[idx] if conf >= THRESHOLD else "Desconocida"
+    return label, conf, True
 
 while True:
     try:
@@ -181,15 +190,16 @@ while True:
         sys.stdout.write(json.dumps(out, ensure_ascii=False) + "\n"); sys.stdout.flush()
         continue
 
-    best_label, best_conf = "Ave no identificada", 0.0
+    best_label, best_conf = "Desconocida", 0.0
+    any_bird_detected = False
 
     try:
         cap = cv2.VideoCapture(path)
         if not cap.isOpened():
             raise RuntimeError("OpenCV no pudo abrir el video")
 
-        native_fps = cap.get(cv2.CAP_PROP_FPS)
-        if not native_fps or native_fps <= 1e-3:
+        native_fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        if native_fps <= 1e-3:
             native_fps = 25.0
 
         stride = max(1, int(round(native_fps / TARGET_FPS)))
@@ -201,11 +211,14 @@ while True:
             if idx > max_frames:
                 break
             if idx % stride == 0:
-                label, conf = classify_frame(frame)
-                if conf > best_conf:
-                    best_label, best_conf = label, float(conf)
-                if STOP_ON_FIRST and conf >= THRESHOLD:
-                    break
+                label, conf, found_bird = classify_frame(frame)
+                if found_bird:
+                    any_bird_detected = True
+                    if conf > best_conf:
+                        best_label, best_conf = label, float(conf)
+                    # Solo cortamos temprano si hay pájaro y pasa el umbral
+                    if STOP_ON_FIRST and best_label != "Desconocida" and best_conf >= THRESHOLD:
+                        break
             idx += 1
             ok, frame = cap.read()
 
@@ -221,6 +234,10 @@ while True:
         os.remove(path)
     except Exception:
         pass
+
+    # Si nunca hubo detección de "bird", devolvemos desconocida 0.0
+    if not any_bird_detected:
+        best_label, best_conf = "Desconocida", 0.0
 
     out = {"label": best_label, "trustLevel": best_conf}
     sys.stdout.write(json.dumps(out, ensure_ascii=False) + "\n")

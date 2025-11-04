@@ -122,7 +122,7 @@ try:
     classes = load_classes(CLASSES_PATH)
 except Exception as e:
     sys.stderr.write(f"[ERROR IMG] No se pudieron cargar clases: {e}\n"); sys.stderr.flush()
-    classes = ["Ave no identificada"]
+    classes = ["Desconocida"]
 
 try:
     clf = load_classifier(MODEL_PATH, len(classes), DEVICE)
@@ -144,7 +144,7 @@ except Exception as e:
 def classify_pil(pil_img: Image.Image):
     """Devuelve (label, conf) para una sola imagen PIL."""
     if clf is None:
-        return "Ave no identificada", 0.0
+        return "Desconocida", 0.0
     with torch.no_grad():
         inp = transform(pil_img).unsqueeze(0).to(DEVICE)
         logits = clf(inp)
@@ -185,7 +185,7 @@ def classify_best(image_pil: Image.Image, max_candidates: int, pad_ratio: float)
             candidates.append(("yolo", image_pil.crop((px1, py1, px2, py2))))
 
     # Clasificar todos los candidatos y quedarnos con el de mayor probabilidad
-    best_label, best_conf = "Ave no identificada", 0.0
+    best_label, best_conf = "Desconocida", 0.0
     for kind, pil_img in candidates:
         label, conf = classify_pil(pil_img)
         if conf > best_conf:
@@ -213,7 +213,7 @@ while True:
     # Pipeline: YOLO (múltiples recortes con padding) + imagen completa -> mejor score
     try:
         label, conf = classify_best(image, max_candidates=MAX_CANDIDATES, pad_ratio=PAD_RATIO)
-        final_label = label if conf >= THRESHOLD else "Ave no identificada"
+        final_label = label if conf >= THRESHOLD else "Desconocida"
         out = {"label": final_label, "trustLevel": conf}
         # ÚNICA salida por stdout (1 línea JSON)
         sys.stdout.write(json.dumps(out, ensure_ascii=False) + "\n")

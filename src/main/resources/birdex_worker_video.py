@@ -57,7 +57,7 @@ def read_exact(n: int) -> bytes:
 
 def err_dict(msg):
     sys.stderr.write(f"[ERROR VID] {msg}\n"); sys.stderr.flush()
-    return {"label": "Ave no identificada", "trustLevel": 0.0, "error": msg}
+    return {"label": "Desconocida", "trustLevel": 0.0, "error": msg}
 
 # ----------- sufijo según cabecera (mejor compatibilidad) -----------
 def pick_suffix_from_bytes(b: bytes) -> str:
@@ -110,7 +110,7 @@ try:
     classes = load_classes(CLASSES_PATH)
 except Exception as e:
     sys.stderr.write(f"[ERROR VID] No se pudieron cargar clases: {e}\n"); sys.stderr.flush()
-    classes = ["Ave no identificada"]
+    classes = ["Desconocida"]
 
 try:
     clf = load_classifier(MODEL_PATH, len(classes), DEVICE)
@@ -154,7 +154,7 @@ def classify_frame(bgr):
         pil_crop = pil_full  # fallback
 
     if clf is None:
-        return "Ave no identificada", 0.0
+        return "Desconocida", 0.0
 
     with torch.no_grad():
         inp = transform(pil_crop).unsqueeze(0).to(DEVICE)
@@ -163,7 +163,7 @@ def classify_frame(bgr):
         idx = int(torch.argmax(probs).item())
         conf = float(probs[idx].item())
 
-    label = classes[idx] if conf >= THRESHOLD else "Ave no identificada"
+    label = classes[idx] if conf >= THRESHOLD else "Desconocida"
     return label, conf
 
 # -------------------- Loop persistente --------------------
@@ -187,7 +187,7 @@ while True:
         sys.stdout.write(json.dumps(out, ensure_ascii=False) + "\n"); sys.stdout.flush()
         continue
 
-    best_label, best_conf = "Ave no identificada", 0.0
+    best_label, best_conf = "Desconocida", 0.0
 
     try:
         cap = cv2.VideoCapture(path)
