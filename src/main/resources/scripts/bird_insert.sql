@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS sightings (
     user_id     UUID NOT NULL,
     bird_id     UUID,
     deleted     BOOLEAN    NOT NULL DEFAULT FALSE,
-    state       VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    state       VARCHAR(20) NOT NULL DEFAULT 'CONFIRMED',
     CONSTRAINT chk_sight_lat CHECK (latitude BETWEEN -90 AND 90),
     CONSTRAINT chk_sight_lon CHECK (longitude BETWEEN -180 AND 180),
     CONSTRAINT chk_sight_state CHECK (state IN ('PENDING', 'CONFIRMED', 'REJECTED')),
@@ -371,7 +371,7 @@ VALUES
   (gen_random_uuid(), 'martin', crypt('pass123', gen_salt('bf')), 'ADMIN',  'martin@example.com')
 ON CONFLICT (email) DO NOTHING;
 
-
+UPDATE users SET points = 400 , level = 4, level_name = 'Explorador' where email = 'lucas@example.com';
 
 INSERT INTO rarity_points (rarity_id, points)
 SELECT r.rarity_id, CASE r.name
@@ -631,54 +631,355 @@ SELECT b.bird_id, c.color_id FROM birds b, colors c
 WHERE b.name = 'Thraupis sayaca' AND c.name IN ('Celeste','Gris')
 ON CONFLICT DO NOTHING;
 
--- ====== SEED: SIGHTINGS (igual a tu versión) ======
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.594900, -58.375700, 'Plaza San Martín, Buenos Aires (CABA)', NOW() - interval '10 days',
+
+INSERT INTO sightings
+SELECT 'df63d003-26e1-41f9-bde6-cc5372eb4c94', -31.637, -60.706, 'Costanera Este, Santa Fe', NOW() - interval '7 days',
        u.user_id, b.bird_id
 FROM users u, birds b
-WHERE u.email = 'lucas@example.com' AND b.name = 'Furnarius rufus'
+WHERE u.email = 'maria@example.com' AND b.name = 'Turdus rufiventris'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.617000, -58.360000, 'Reserva Ecológica Costanera Sur, CABA', NOW() - interval '7 days',
+INSERT INTO sightings
+SELECT '6f3ac5bb-aa60-4da6-9eff-60476a864aca', -31.637, -60.706, 'Costanera Este, Santa Fe', NOW() - interval '20 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '53608479-35b7-4a55-ad6c-d91f3d1380fb', -25.607, -54.57, 'Parque Nacional Iguazú, Misiones', NOW() - interval '28 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Ramphastos toco'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'e974dad0-fb95-4d59-bba1-ac3968e1b754', -27.481, -58.836, 'Costanera Sur, Corrientes', NOW() - interval '12 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '547cf6ec-b185-4ec5-a1db-f75e1b7e5240', -28.0, -56.0, 'Posadas, Misiones', NOW() - interval '1 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Pipraeidea bonariensis'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '8ed478a1-2aaa-429a-909e-dcc837a1a5b4', -29.9, -64.4, 'Sierra de Ambargasta, Santiago del Estero', NOW() - interval '20 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Buteogallus coronatus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'd150f335-58f7-423d-bbfa-29e60bc13df2', -24.186, -65.331, 'Quebrada de San Lorenzo, Salta', NOW() - interval '16 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Vultur gryphus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'e03f85a0-eb37-469f-96f4-26c8a5bbb4fb', -28.0, -56.0, 'Posadas, Misiones', NOW() - interval '1 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Pipraeidea bonariensis' 
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'f4d93b99-601a-4975-beea-d3f08736f3ce', -27.6, -55.1, 'Apóstoles, Misiones', NOW() - interval '11 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Pipraeidea bonariensis'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'a1897fa4-1efb-42fe-89b9-92857c175ead', -34.6, -63.4, 'Campos de San Luis', NOW() - interval '1 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Rhea americana'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '86f5e851-1199-465c-b2ef-d0382aac76da', -34.2, -59.1, 'Campana, Buenos Aires', NOW() - interval '27 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Chauna torquata'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '7a2d2329-0ee9-43ff-b048-ae0ed1316245', -32.9, -60.7, 'Rosario, Santa Fe', NOW() - interval '25 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '3a24a6ae-1abc-4aea-84e7-79a35b505b2e', -25.607, -54.57, 'Parque Nacional Iguazú, Misiones', NOW() - interval '12 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Ramphastos toco'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'f1023f80-91ef-480d-8dfe-46e6f236ba6f', -32.9, -60.7, 'Rosario, Santa Fe', NOW() - interval '27 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'be032922-aa6f-4e5a-ae4c-65a0a9684411', -26.9, -54.6, 'Eldorado, Misiones', NOW() - interval '9 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Ramphastos toco'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'a2137ecd-1449-43c4-9999-5426946268c6', -42.0, -65.1, 'Península Valdés, Chubut', NOW() - interval '12 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Phoenicopterus chilensis'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'd55210a1-c729-4924-aeb3-815430fc05b0', -32.115, -58.234, 'Laguna del Pescado, Entre Ríos', NOW() - interval '15 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Chauna torquata'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '39a29b4d-56b9-4fae-ba7f-fbc3415e4ccc', -28.5, -59.1, 'Esteros del Iberá, Corrientes', NOW() - interval '10 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Cyanocompsa brissonii'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'a68534a0-6f4e-4ced-add5-f27241294dd3', -30.0, -59.0, 'Reconquista, Santa Fe', NOW() - interval '25 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '34168793-14fa-4b11-be37-c7751b8c0e6d', -28.1, -68.0, 'Andes Catamarqueños', NOW() - interval '25 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Vultur gryphus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '87218003-f0be-4481-a5ed-897b4dad424a', -34.6, -63.4, 'Campos de San Luis', NOW() - interval '5 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Rhea americana'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '6bd170ef-1470-43bc-b018-c466270004d8', -32.95, -60.65, 'Rosario, Santa Fe', NOW() - interval '19 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '1b40b423-3fa1-4eeb-9477-ef6c6a2dc374', -33.7, -60.5, 'San Nicolás, Buenos Aires', NOW() - interval '30 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Chauna torquata'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '6a5979b4-ef10-4fbc-b970-b8d00d7c839a', -31.637, -60.706, 'Costanera Este, Santa Fe', NOW() - interval '4 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'e496c5bc-1546-48ec-9fe6-e1df70d1dd72', -33.5, -67.6, 'Valle de Uco, Mendoza', NOW() - interval '15 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Buteogallus coronatus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '1ed14a1a-9e28-454d-954f-aaf4b0675292', -26.877, -54.469, 'Reserva Esmeralda, Misiones', NOW() - interval '22 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Pipraeidea bonariensis'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '6614a07e-daf0-4b95-86f4-b5b503e2bc30', -26.877, -54.469, 'Reserva Esmeralda, Misiones', NOW() - interval '1 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Pipraeidea bonariensis'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'a478405c-ac44-4240-8419-f91c7c2815df', -37.001, -64.908, 'Reserva Parque Luro, La Pampa', NOW() - interval '7 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Rhea americana'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '8a89b296-41fa-42b0-a007-d8454b273471', -33.5, -67.6, 'Valle de Uco, Mendoza', NOW() - interval '27 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Buteogallus coronatus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '57b5eeb4-b3be-489b-88a5-f4289235c33a', -31.637, -60.706, 'Costanera Este, Santa Fe', NOW() - interval '14 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '5c7a04cf-6780-4f01-a091-a8f932ef4bc9', -32.9, -60.7, 'Rosario, Santa Fe', NOW() - interval '23 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '31dcaacb-6498-40a5-a0c5-8460c09ca8ae', -31.637, -60.706, 'Costanera Este, Santa Fe', NOW() - interval '28 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '4df573c3-46b1-441a-95f5-9e53cc099b9e', -33.5, -67.6, 'Valle de Uco, Mendoza', NOW() - interval '21 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Buteogallus coronatus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'cea09ca8-9c26-48a6-9273-af306e59832e', -25.607, -54.57, 'Parque Nacional Iguazú, Misiones', NOW() - interval '9 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Ramphastos toco'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'd21023f2-4ce0-4fcd-875a-db3a52d9ff78', -34.603, -58.381, 'Parque Centenario, Buenos Aires', NOW() - interval '9 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '2dbd6e68-f43d-4ea0-af1d-bfee6074b8c2', -34.603, -58.381, 'Parque Centenario, Buenos Aires', NOW() - interval '1 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'c9bfdcd2-f33d-49e8-96d3-0e9ccc45e1c9', -29.4, -58.0, 'Goya, Corrientes', NOW() - interval '1 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Cyanocompsa brissonii'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'f83196b7-7250-4746-9aea-ae1287eb2a45', -27.6, -55.1, 'Apóstoles, Misiones', NOW() - interval '30 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Pipraeidea bonariensis'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '86796449-d919-41fb-bdfe-a6695ab785d9', -32.95, -60.65, 'Rosario, Santa Fe', NOW() - interval '12 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '0ed3b568-29f6-4cb2-9639-ce9fca346260', -27.481, -58.836, 'Costanera Sur, Corrientes', NOW() - interval '2 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '1a9ffc3f-b58b-4b64-bbc0-dde90faca1ba', -27.482, -58.826, 'Reserva Santa Ana, Corrientes', NOW() - interval '7 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Cyanocompsa brissonii'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'c9084ef2-f094-41fb-b28d-98d72e86a627', -27.481, -58.836, 'Costanera Sur, Corrientes', NOW() - interval '4 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '439eac8e-eb19-4d27-9140-3034aa03737c', -32.9, -60.7, 'Rosario, Santa Fe', NOW() - interval '11 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '53375185-7328-4816-a7d7-152a672ae080', -34.603, -58.381, 'Parque Centenario, Buenos Aires', NOW() - interval '27 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Turdus rufiventris'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '80d4e044-e475-4f14-9141-12fe89d969e5', -29.9, -64.4, 'Sierra de Ambargasta, Santiago del Estero', NOW() - interval '19 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Buteogallus coronatus'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'ca79a6ad-aa1d-4743-8695-10ab787e4060', -32.9, -60.7, 'Rosario, Santa Fe', NOW() - interval '19 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Thraupis sayaca'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT 'd6f17318-6119-4bd0-a968-cc2c03d79750', -27.482, -58.826, 'Reserva Santa Ana, Corrientes', NOW() - interval '2 days',
+       u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Cyanocompsa brissonii'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings
+SELECT '4e165027-7192-49c3-a6a9-bde99d1dca9f', -35.674, -69.175, 'Laguna de Llancanelo, Mendoza', NOW() - interval '5 days',
        u.user_id, b.bird_id
 FROM users u, birds b
 WHERE u.email = 'maria@example.com' AND b.name = 'Phoenicopterus chilensis'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -35.577000, -58.016000, 'Laguna de Chascomús, Buenos Aires', NOW() - interval '5 days',
+INSERT INTO sightings
+SELECT '20a4bcf3-e782-48b5-b9ea-2a11167aeb1e', -32.6, -60.8, 'Zona rural de Santa Fe', NOW() - interval '6 days',
        u.user_id, b.bird_id
 FROM users u, birds b
-WHERE u.email = 'juan@example.com' AND b.name = 'Cygnus melancoryphus'
+WHERE u.email = 'maria@example.com' AND b.name = 'Rhea americana'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -32.890000, -68.865000, 'Parque General San Martín, Mendoza', NOW() - interval '3 days',
+INSERT INTO sightings
+SELECT '594fb73f-3033-411e-8aba-bedec757f56d', -24.186, -65.331, 'Quebrada de San Lorenzo, Salta', NOW() - interval '18 days',
        u.user_id, b.bird_id
 FROM users u, birds b
-WHERE u.email = 'sofia@example.com' AND b.name = 'Vanellus chilensis'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -35.240000, -57.329000, 'Reserva El Destino, Magdalena (Bs As)', NOW() - interval '1 day',
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'martin@example.com' AND b.name = 'Buteogallus coronatus'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.587300, -58.416500, 'Jardín Botánico Carlos Thays, CABA', NOW() - interval '2 days',
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.608000, -58.371000, 'Plaza de Mayo, CABA', NOW(),
-       u.user_id, b.bird_id
-FROM users u, birds b
-WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris'
+WHERE u.email = 'maria@example.com' AND b.name = 'Vultur gryphus'
 ON CONFLICT DO NOTHING;
 
 -- Completa rarezas faltantes con "Común"
@@ -909,60 +1210,6 @@ UNION ALL
 SELECT b.bird_id, 11, p_er.province_id FROM bird b, p_er
 ON CONFLICT DO NOTHING;
 
-
-INSERT INTO sightings (sighting_id, latitude, longitude, location_text, date_time, user_id, bird_id)
-SELECT gen_random_uuid(), -34.603700, -58.381600, 'Obelisco CABA', NOW() - interval '9 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.603900, -58.381500, 'Obelisco CABA', NOW() - interval '8 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.603400, -58.381700, 'Obelisco CABA', NOW() - interval '7 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.603800, -58.381800, 'Obelisco CABA', NOW() - interval '6 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.603500, -58.381400, 'Obelisco CABA', NOW() - interval '5 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'martin@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.603650, -58.381550, 'Obelisco CABA', NOW() - interval '4 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.603720, -58.381480, 'Obelisco CABA', NOW() - interval '3 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.603780, -58.381620, 'Obelisco CABA', NOW() - interval '2 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.603830, -58.381560, 'Obelisco CABA', NOW() - interval '1 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Turdus rufiventris' ON CONFLICT DO NOTHING;
-
-
-INSERT INTO sightings SELECT gen_random_uuid(), -34.606500, -58.436000, 'Parque Centenario', NOW() - interval '12 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.606420, -58.435900, 'Parque Centenario', NOW() - interval '11 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.606600, -58.436120, 'Parque Centenario', NOW() - interval '10 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.606520, -58.436180, 'Parque Centenario', NOW() - interval '9 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.606480, -58.435960, 'Parque Centenario', NOW() - interval '8 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'martin@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.606550, -58.436040, 'Parque Centenario', NOW() - interval '7 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.606580, -58.436090, 'Parque Centenario', NOW() - interval '6 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Vanellus chilensis' ON CONFLICT DO NOTHING;
-
-
-INSERT INTO sightings SELECT gen_random_uuid(), -34.587300, -58.416500, 'Jardín Botánico', NOW() - interval '20 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.587360, -58.416420, 'Jardín Botánico', NOW() - interval '18 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.587240, -58.416560, 'Jardín Botánico', NOW() - interval '16 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'martin@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.587330, -58.416470, 'Jardín Botánico', NOW() - interval '14 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.587280, -58.416520, 'Jardín Botánico', NOW() - interval '12 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'maria@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.587310, -58.416450, 'Jardín Botánico', NOW() - interval '10 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'juan@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.587350, -58.416530, 'Jardín Botánico', NOW() - interval '8 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'sofia@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
-INSERT INTO sightings SELECT gen_random_uuid(), -34.587270, -58.416490, 'Jardín Botánico', NOW() - interval '6 hours', u.user_id, b.bird_id
-FROM users u, birds b WHERE u.email = 'martin@example.com' AND b.name = 'Paroaria coronata' ON CONFLICT DO NOTHING;
 
 -- ===========================================================
 -- NUEVO: ZONAS DE APARICIÓN + RELACIÓN AVE/ZONA
