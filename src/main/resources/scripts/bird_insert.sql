@@ -372,6 +372,11 @@ VALUES
 ON CONFLICT (email) DO NOTHING;
 
 UPDATE users SET points = 400 , level = 4, level_name = 'Explorador' where email = 'lucas@example.com';
+UPDATE users SET points = 550 , level = 5, level_name = 'Ornitologo' where email = 'maria@example.com';
+UPDATE users SET points = 200 , level = 3, level_name = 'Aventurero' where email = 'juan@example.com';
+UPDATE users SET points = 900 , level = 7, level_name = 'Maestro Ornitologo' where email = 'sofia@example.com';
+UPDATE users SET points = 100 , level = 2, level_name = 'Aprendiz' where email = 'martin@example.com';
+
 
 INSERT INTO rarity_points (rarity_id, points)
 SELECT r.rarity_id, CASE r.name
@@ -982,6 +987,41 @@ FROM users u, birds b
 WHERE u.email = 'maria@example.com' AND b.name = 'Vultur gryphus'
 ON CONFLICT DO NOTHING;
 
+INSERT INTO sightings
+SELECT 'a1f8d9f2-5c11-46da-8e8a-2d3b0e92f101', -34.5867, -58.4149, 'Jardín Botánico Carlos Thays, CABA', 
+       NOW() - interval '3 days', u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'lucas@example.com' AND b.name = 'Paroaria coronata'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings 
+SELECT 'c9b2a71e-0e7c-48e3-8a52-4bd992de4c77', -31.4201, -64.1900, 'Parque Sarmiento, Córdoba', 
+       NOW() - interval '14 days', u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'maria@example.com' AND b.name = 'Paroaria coronata'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings 
+SELECT '6d5147fa-bbc8-4d37-8851-5ac5fb9faf2e', -33.2800, -66.3390, 'Parque de las Naciones, San Luis', 
+       NOW() - interval '7 days', u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'juan@example.com' AND b.name = 'Paroaria coronata'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings 
+SELECT 'f82c61b4-5d6d-4ac1-aed6-8f6cb01e0f20', -32.9486, -60.6733, 'Parque Independencia, Rosario', 
+       NOW() - interval '20 days', u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'sofia@example.com' AND b.name = 'Paroaria coronata'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sightings 
+SELECT '4b92e451-d63d-4cd7-bab6-b86137e9dd3f', -34.5090, -58.4790, 'Reserva Ribera Norte, San Isidro (Bs As)', 
+       NOW() - interval '1 day', u.user_id, b.bird_id
+FROM users u, birds b
+WHERE u.email = 'martin@example.com' AND b.name = 'Paroaria coronata'
+ON CONFLICT DO NOTHING;
+
 -- Completa rarezas faltantes con "Común"
 
 INSERT INTO bird_rarity (bird_id, rarity_id)
@@ -1520,6 +1560,316 @@ BEGIN
     -- Novato → completo
     UPDATE user_achievements
     SET progress = '{"sightings":1}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Novato');
+
+    -- Naturalista → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":10}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Naturalista');
+
+    -- Ornitólogo → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":25}',
+        obtained_at = NULL
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Ornitólogo');
+
+    UPDATE user_achievements
+    SET progress = '{"rarity":"Épico"}',
+        obtained_at = NOW()
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Épico');
+
+END $$;
+
+
+---avance de logros y misiones para maria@example.com
+-- 1️⃣ Obtener el ID del usuario
+DO $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    -- Obtener el ID del usuario
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'maria@example.com';
+
+    IF v_user_id IS NULL THEN
+        RAISE NOTICE 'Usuario no encontrado: lucas@example.com';
+        RETURN;
+    END IF;
+
+    ----------------------------------------------------------------
+    -- 🕹️ MISIONES
+    ----------------------------------------------------------------
+
+    -- Primer Avistamiento del día → completada y reclamada
+    UPDATE user_missions
+    SET progress = '{"sightings":1}',
+        completed = TRUE,
+        claimed = TRUE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Primer Avistamiento del dia');
+
+    -- Explorador Común → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"rarity":"Común","count":3}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Explorador Común');
+
+    -- Maestro del Vuelo → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"sightings":30}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Maestro del Vuelo');
+
+    -- Cazador de Raros → completada, no reclamada
+    UPDATE user_missions
+    SET progress = '{"rarity":"Raro","count":1}',
+        completed = TRUE,
+        claimed = FALSE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Cazador de Raros');
+
+    -- Semana Productiva → progreso medio
+    UPDATE user_missions
+    SET progress = '{"sightings":6}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Semana Productiva');
+
+
+    ----------------------------------------------------------------
+    -- 🏆 LOGROS
+    ----------------------------------------------------------------
+
+    -- Novato → completo
+    UPDATE user_achievements
+    SET progress = '{"sightings":1}',
+        obtained_at = NOW()
+        claimed = TRUE,
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Novato');
+
+    -- Naturalista → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":10}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Naturalista');
+
+    -- Ornitólogo → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":25}',
+        obtained_at = NULL
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Ornitólogo');
+
+    UPDATE user_achievements
+    SET progress = '{"rarity":"Raro","count":5}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Maestro de Raros');
+
+    UPDATE user_achievements
+    SET progress = '{"rarity":"Épico"}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Épico');
+
+END $$;
+
+
+
+---avance de logros y misiones para sofia@example.com
+-- 1️⃣ Obtener el ID del usuario
+DO $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    -- Obtener el ID del usuario
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'sofia@example.com';
+
+    IF v_user_id IS NULL THEN
+        RAISE NOTICE 'Usuario no encontrado: lucas@example.com';
+        RETURN;
+    END IF;
+
+    ----------------------------------------------------------------
+    -- 🕹️ MISIONES
+    ----------------------------------------------------------------
+
+    -- Primer Avistamiento del día → completada y reclamada
+    UPDATE user_missions
+    SET progress = '{"sightings":1}',
+        completed = TRUE,
+        claimed = TRUE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Primer Avistamiento del dia');
+
+    -- Explorador Común → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"rarity":"Común","count":3}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Explorador Común');
+
+    -- Maestro del Vuelo → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"sightings":30}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Maestro del Vuelo');
+
+    -- Cazador de Raros → completada, no reclamada
+    UPDATE user_missions
+    SET progress = '{"rarity":"Raro","count":1}',
+        completed = TRUE,
+        claimed = FALSE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Cazador de Raros');
+
+    -- Semana Productiva → progreso medio
+    UPDATE user_missions
+    SET progress = '{"sightings":6}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Semana Productiva');
+
+
+    ----------------------------------------------------------------
+    -- 🏆 LOGROS
+    ----------------------------------------------------------------
+
+    -- Novato → completo
+    UPDATE user_achievements
+    SET progress = '{"sightings":1}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Novato');
+
+    UPDATE user_achievements
+    SET progress = '{"rarity":"Legendario"}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Legendario');
+
+    -- Naturalista → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":10}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Naturalista');
+
+    -- Ornitólogo → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":25}',
+        obtained_at = NULL
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Ornitólogo');
+
+END $$;
+
+
+---avance de logros y misiones para juan@example.com
+-- 1️⃣ Obtener el ID del usuario
+DO $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    -- Obtener el ID del usuario
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'juan@example.com';
+
+    IF v_user_id IS NULL THEN
+        RAISE NOTICE 'Usuario no encontrado: lucas@example.com';
+        RETURN;
+    END IF;
+
+    ----------------------------------------------------------------
+    -- 🕹️ MISIONES
+    ----------------------------------------------------------------
+
+    -- Primer Avistamiento del día → completada y reclamada
+    UPDATE user_missions
+    SET progress = '{"sightings":1}',
+        completed = TRUE,
+        claimed = TRUE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Primer Avistamiento del dia');
+
+    -- Explorador Común → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"rarity":"Común","count":3}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Explorador Común');
+
+    -- Maestro del Vuelo → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"sightings":30}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Maestro del Vuelo');
+
+    -- Cazador de Raros → completada, no reclamada
+    UPDATE user_missions
+    SET progress = '{"rarity":"Raro","count":1}',
+        completed = TRUE,
+        claimed = FALSE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Cazador de Raros');
+
+    -- Semana Productiva → progreso medio
+    UPDATE user_missions
+    SET progress = '{"sightings":6}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Semana Productiva');
+
+
+    ----------------------------------------------------------------
+    -- 🏆 LOGROS
+    ----------------------------------------------------------------
+
+    -- Novato → completo
+    UPDATE user_achievements
+    SET progress = '{"sightings":1}',
         obtained_at = NOW()
     WHERE user_id = v_user_id
       AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Novato');
@@ -1540,3 +1890,108 @@ BEGIN
 
 END $$;
 
+---avance de logros y misiones para martin@example.com
+-- 1️⃣ Obtener el ID del usuario
+DO $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    -- Obtener el ID del usuario
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'martin@example.com';
+
+    IF v_user_id IS NULL THEN
+        RAISE NOTICE 'Usuario no encontrado: lucas@example.com';
+        RETURN;
+    END IF;
+
+    ----------------------------------------------------------------
+    -- 🕹️ MISIONES
+    ----------------------------------------------------------------
+
+    -- Primer Avistamiento del día → completada y reclamada
+    UPDATE user_missions
+    SET progress = '{"sightings":1}',
+        completed = TRUE,
+        claimed = TRUE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Primer Avistamiento del dia');
+
+    -- Explorador Común → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"rarity":"Común","count":3}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Explorador Común');
+
+    -- Maestro del Vuelo → progreso parcial
+    UPDATE user_missions
+    SET progress = '{"sightings":30}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Maestro del Vuelo');
+
+    -- Cazador de Raros → completada, no reclamada
+    UPDATE user_missions
+    SET progress = '{"rarity":"Raro","count":1}',
+        completed = TRUE,
+        claimed = FALSE,
+        completed_at = NOW()
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Cazador de Raros');
+
+    -- Semana Productiva → progreso medio
+    UPDATE user_missions
+    SET progress = '{"sightings":6}',
+        completed = FALSE,
+        claimed = FALSE,
+        completed_at = NULL
+    WHERE user_id = v_user_id
+      AND mission_id = (SELECT mission_id FROM missions WHERE name = 'Semana Productiva');
+
+
+    ----------------------------------------------------------------
+    -- 🏆 LOGROS
+    ----------------------------------------------------------------
+
+    -- Novato → completo
+    UPDATE user_achievements
+    SET progress = '{"sightings":1}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Novato');
+
+    UPDATE user_achievements
+    SET progress = '{"rarity":"Legendario"}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Legendario');
+
+    UPDATE user_achievements
+    SET progress = '{"rarity":"Épico"}',
+        obtained_at = NOW(),
+        claimed = TRUE
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Épico');
+
+    -- Naturalista → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":6}',
+        obtained_at = NULL
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Naturalista');
+
+    -- Ornitólogo → progreso parcial
+    UPDATE user_achievements
+    SET progress = '{"unique_species":25}',
+        obtained_at = NULL
+    WHERE user_id = v_user_id
+      AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Ornitólogo');
+
+END $$;
