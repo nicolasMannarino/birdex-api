@@ -1586,20 +1586,12 @@ BEGIN
     WHERE user_id = v_user_id
       AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Épico');
 
-END $$;
 
-
----avance de logros y misiones para maria@example.com
--- 1️⃣ Obtener el ID del usuario
-DO $$
-DECLARE
-    v_user_id UUID;
-BEGIN
     -- Obtener el ID del usuario
     SELECT user_id INTO v_user_id FROM users WHERE email = 'maria@example.com';
 
     IF v_user_id IS NULL THEN
-        RAISE NOTICE 'Usuario no encontrado: lucas@example.com';
+        RAISE NOTICE 'Usuario no encontrado: maria@example.com';
         RETURN;
     END IF;
 
@@ -1660,8 +1652,8 @@ BEGIN
     -- Novato → completo
     UPDATE user_achievements
     SET progress = '{"sightings":1}',
-        obtained_at = NOW()
-        claimed = TRUE,
+        obtained_at = NOW(),
+        claimed = TRUE
     WHERE user_id = v_user_id
       AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Novato');
 
@@ -1695,7 +1687,6 @@ BEGIN
       AND achievement_id = (SELECT achievement_id FROM achievements WHERE name = 'Épico');
 
 END $$;
-
 
 
 ---avance de logros y misiones para sofia@example.com
