@@ -374,7 +374,7 @@ ON CONFLICT (email) DO NOTHING;
 UPDATE users SET points = 400 , level = 4, level_name = 'Explorador' where email = 'lucas@example.com';
 UPDATE users SET points = 550 , level = 5, level_name = 'Ornitologo' where email = 'maria@example.com';
 UPDATE users SET points = 200 , level = 3, level_name = 'Aventurero' where email = 'juan@example.com';
-UPDATE users SET points = 900 , level = 7, level_name = 'Maestro Ornitologo' where email = 'sofia@example.com';
+UPDATE users SET points = 900 , level = 6, level_name = 'Maestro Ornitologo' where email = 'sofia@example.com';
 UPDATE users SET points = 100 , level = 2, level_name = 'Aprendiz' where email = 'martin@example.com';
 
 
