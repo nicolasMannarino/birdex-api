@@ -1,5 +1,20 @@
-# Guía para levantar el servicio FastAPI
+# 🦅 BirdEX - Backend System
 
+Sistema de backend para **BirdEX**, compuesto por una arquitectura híbrida:
+1. **Core API:** Java + Spring Boot (Lógica de negocio, usuarios, gamificación).
+2. **AI Service:** Python + FastAPI (Identificación de aves con BirdNET).
+
+---
+
+### 📱 Cliente Móvil
+Este repositorio contiene los servicios del servidor. El código de la aplicación móvil se encuentra aquí:
+👉 **[Ir al repositorio Mobile (React Native)](https://github.com/nicolasMannarino/birdex-mobile)**
+
+---
+
+## 🐍 Guía de Ejecución: Servicio de IA (FastAPI)
+
+Este microservicio se encarga de procesar los audios/imágenes para identificar las aves. Se encuentra en la carpeta `/birdnet-service`.
 ## 🔹 Inicialización
 *(Solo la primera vez que configures el proyecto o si cambias el `pyproject.toml`)*
 
