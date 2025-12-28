@@ -42,3 +42,10 @@ cd /bx-server/birdnet-service
 # 2. Levantar el servidor FastAPI
 poetry run uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+👥 Créditos
+Desarrollado como proyecto universitario.
+
+Integración IA: Python, FastAPI, Poetry.
+
+Backend Core: Java, Spring Boot.
